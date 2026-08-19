@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEA · Bureau d'Études Paramétrique</title>
+<link rel="preconnect" href="https://fonts.googleapis.com/">
+<link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0c0f10; --panel:#14181a; --panel-2:#191e20; --grid-line:#20262a;
+  --text:#e9ebe7; --text-dim:#8d9b9a; --text-faint:#5a6566;
+  --cyan:#5fd8e6; --orange:#ff7a3d; --border:#262d2f;
+  --danger:#ff6b6b; --ok:#7ee787;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  background:var(--bg); color:var(--text); font-family:'Inter',sans-serif;
+  background-image:linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size:32px 32px; background-position:-1px -1px;
+  min-height:100vh;
+}
+a{color:inherit; text-decoration:none;}
+.mono{font-family:'JetBrains Mono', monospace;}
+.display{font-family:'Space Grotesk', sans-serif;}
+::selection{background:var(--cyan); color:#0c0f10;}
+
+/* ---------- shared bits ---------- */
+.btn{font-family:'JetBrains Mono', monospace; font-size:12px; border:1px solid var(--border); background:transparent; color:var(--text); padding:8px 14px; cursor:pointer; transition:all .15s; border-radius:1px;}
+.btn:hover{border-color:var(--cyan); color:var(--cyan);}
+.btn-primary{background:var(--cyan); color:#0c0f10; border-color:var(--cyan);}
+.btn-primary:hover{background:transparent; color:var(--cyan);}
+.btn-danger:hover{border-color:var(--danger); color:var(--danger);}
+.btn-sm{padding:5px 10px; font-size:11px;}
+input,select,textarea{width:100%; background:var(--panel-2); border:1px solid var(--border); color:var(--text); padding:8px 10px; font-family:'JetBrains Mono', monospace; font-size:13px; border-radius:1px;}
+input:focus,select:focus,textarea:focus{outline:none; border-color:var(--cyan);}
+label{display:block; font-family:'JetBrains Mono', monospace; font-size:10.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.04em; margin-bottom:5px;}
+.field-note{font-size:11.5px; color:var(--text-faint); margin-top:4px; line-height:1.4;}
+.card{background:var(--panel); border:1px solid var(--border); padding:20px; margin-bottom:16px;}
+.grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px;}
+table{width:100%; border-collapse:collapse; font-size:13px;}
+th{text-align:left; font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.04em; padding:8px 8px; border-bottom:1px solid var(--border);}
+td{padding:9px 8px; border-bottom:1px solid var(--grid-line); vertical-align:middle;}
+tr:hover td{background:var(--panel-2);}
+.pill{display:inline-block; font-family:'JetBrains Mono', monospace; font-size:10px; padding:3px 8px; border-radius:10px; text-transform:uppercase; letter-spacing:.03em; white-space:nowrap;}
+.tag-cyan{background:rgba(95,216,230,.12); color:var(--cyan); border:1px solid rgba(95,216,230,.3);}
+.tag-orange{background:rgba(255,122,61,.12); color:var(--orange); border:1px solid rgba(255,122,61,.3);}
+.tag-dim{background:rgba(141,155,154,.1); color:var(--text-dim); border:1px solid var(--border);}
+.metric{background:var(--panel-2); border:1px solid var(--border); padding:16px;}
+.metric .lbl{font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.04em;}
+.metric .val{font-family:'Space Grotesk',sans-serif; font-size:26px; font-weight:600; margin-top:6px;}
+h2.mod-title{font-family:'Space Grotesk', sans-serif; font-size:20px; font-weight:600; margin-bottom:4px;}
+.mod-desc{color:var(--text-dim); font-size:13px; margin-bottom:20px;}
+.toolbar{display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;}
+.tabs{display:flex; gap:2px; border-bottom:1px solid var(--border); margin-bottom:20px;}
+.tab{font-family:'JetBrains Mono', monospace; font-size:12px; padding:10px 16px; color:var(--text-dim); cursor:pointer; border-bottom:2px solid transparent;}
+.tab.active{color:var(--cyan); border-bottom-color:var(--cyan);}
+.empty{color:var(--text-faint); font-size:13px; padding:24px; text-align:center; border:1px dashed var(--border);}
+.save-indicator{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-faint); transition:opacity .3s;}
+
+/* ---------- public site ---------- */
+.wrap{max-width:1180px; margin:0 auto; padding:0 32px;}
+#public header{position:fixed; top:0; left:0; right:0; z-index:100; backdrop-filter:blur(10px); background:rgba(12,15,16,.75); border-bottom:1px solid var(--border);}
+#public nav.wrap{display:flex; align-items:center; justify-content:space-between; height:64px;}
+.logo{font-family:'JetBrains Mono', monospace; font-size:14px; display:flex; align-items:center; gap:8px;}
+.logo .dot{width:7px;height:7px;background:var(--cyan); display:inline-block; transform:rotate(45deg);}
+.navlinks{display:flex; gap:32px; font-size:13px; font-family:'JetBrains Mono', monospace;}
+.navlinks a{color:var(--text-dim); transition:color .2s;}
+.navlinks a:hover{color:var(--cyan);}
+.lang-switch{font-size:11px; display:flex; align-items:center; gap:6px;}
+.lang-opt{color:var(--text-faint); cursor:pointer; transition:color .2s;}
+.lang-opt:hover{color:var(--text);}
+.lang-opt.active{color:var(--cyan);}
+.lang-sep{color:var(--border);}
+#public .hero{min-height:100vh; display:flex; flex-direction:column; justify-content:center; padding-top:64px;}
+.hero-inner{display:grid; grid-template-columns:1.1fr 0.9fr; gap:40px; align-items:center;}
+.eyebrow{font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--cyan); letter-spacing:.12em; text-transform:uppercase; margin-bottom:20px; display:flex; align-items:center; gap:10px;}
+.eyebrow::before{content:''; width:24px; height:1px; background:var(--cyan);}
+h1.display{font-size:clamp(34px,5vw,58px); line-height:1.08; font-weight:600; letter-spacing:-.02em; max-width:760px;}
+#public .lede{margin-top:22px; font-size:16px; line-height:1.6; color:var(--text-dim); max-width:520px;}
+.hero-actions{display:flex; gap:14px; margin-top:32px;}
+.stats-row{display:flex; gap:36px; margin-top:48px; padding-top:24px; border-top:1px solid var(--border);}
+.stat .num{font-family:'Space Grotesk',sans-serif; font-size:24px; font-weight:600;}
+.stat .lbl{font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.06em; margin-top:4px;}
+.graph-box{position:relative; aspect-ratio:1/1.05; border:1px solid var(--border); background:var(--panel);}
+.graph-box .tag{position:absolute; top:14px; left:14px; font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-faint);}
+.graph-box .tag2{position:absolute; bottom:14px; right:14px; font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-faint); text-align:right;}
+svg.graph{width:100%; height:100%; display:block;}
+.gnode rect{fill:var(--panel-2); stroke:var(--border); stroke-width:1;}
+.gnode text{font-family:'JetBrains Mono',monospace; font-size:9px; fill:var(--text-dim);}
+.gnode .pin{fill:var(--text-faint);}
+.wire{fill:none; stroke-width:1.4;}
+.wire.c{stroke:var(--cyan); opacity:.85;}
+.wire.o{stroke:var(--orange); opacity:.75;}
+.wire-anim{stroke-dasharray:4 5; animation:dash 18s linear infinite;}
+@keyframes dash{to{stroke-dashoffset:-400;}}
+section.block{padding:100px 0;}
+.hairline{border-top:1px solid var(--border);}
+.sec-head{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:40px; flex-wrap:wrap; gap:14px;}
+.sec-num{font-family:'JetBrains Mono', monospace; color:var(--text-faint); font-size:12px;}
+.sec-title{font-family:'Space Grotesk', sans-serif; font-size:clamp(24px,3vw,34px); font-weight:600;}
+.sec-sub{font-size:13.5px; color:var(--text-dim); max-width:380px;}
+.proj-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--border);}
+.proj-card{background:var(--bg);}
+.proj-thumb{aspect-ratio:4/3; background:repeating-linear-gradient(135deg, var(--panel-2) 0px, var(--panel-2) 2px, var(--panel) 2px, var(--panel) 26px); display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--text-faint); border-bottom:1px solid var(--border);}
+.proj-body{padding:20px;}
+.proj-tag{font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--cyan); text-transform:uppercase; letter-spacing:.06em;}
+.proj-name{font-family:'Space Grotesk', sans-serif; font-size:17px; font-weight:600; margin-top:6px;}
+.proj-desc{font-size:13px; color:var(--text-dim); margin-top:8px; line-height:1.55;}
+.proj-tools{display:flex; flex-wrap:wrap; gap:6px; margin-top:14px;}
+.proj-tools span{font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--text-faint); border:1px solid var(--border); padding:3px 8px;}
+.about-grid{display:grid; grid-template-columns:.9fr 1.1fr; gap:56px; align-items:start;}
+.about-text p{font-size:14.5px; line-height:1.75; color:var(--text-dim); margin-bottom:16px;}
+.skill-cols{display:grid; grid-template-columns:1fr 1fr; gap:28px;}
+.skill-group h4{font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.06em; margin-bottom:12px;}
+.skill-group ul{list-style:none;}
+.skill-group li{font-size:13.5px; padding:8px 0; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; color:var(--text);}
+.skill-group li span.lvl{font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--text-faint);}
+.serv-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--border);}
+.serv-card{background:var(--bg); padding:26px 22px; min-height:190px; display:flex; flex-direction:column; justify-content:space-between;}
+.serv-num{font-family:'JetBrains Mono',monospace; color:var(--orange); font-size:12px;}
+.serv-title{font-family:'Space Grotesk',sans-serif; font-size:16px; font-weight:600; margin-top:14px; line-height:1.3;}
+.serv-desc{font-size:12.5px; color:var(--text-dim); margin-top:8px; line-height:1.55;}
+.contact-grid{display:grid; grid-template-columns:1.2fr .8fr; gap:50px; align-items:end;}
+.contact-title{font-family:'Space Grotesk',sans-serif; font-size:clamp(28px,4.5vw,48px); font-weight:600; line-height:1.12; letter-spacing:-.02em;}
+.contact-email{display:inline-block; margin-top:24px; font-family:'JetBrains Mono',monospace; font-size:15px; color:var(--cyan); border-bottom:1px solid var(--cyan); padding-bottom:4px;}
+.contact-meta{font-family:'JetBrains Mono',monospace; font-size:11.5px; color:var(--text-faint); line-height:2;}
+.contact-meta .k{color:var(--text-dim);}
+#public footer{padding:32px 0; border-top:1px solid var(--border); display:flex; justify-content:space-between; font-size:12px; color:var(--text-faint); font-family:'JetBrains Mono',monospace; flex-wrap:wrap; gap:12px;}
+#public footer a{color:var(--text-dim); margin-left:16px; transition:color .2s;}
+#public footer a:hover{color:var(--cyan);}
+@media (max-width:880px){.hero-inner{grid-template-columns:1fr;} .graph-box{order:-1; aspect-ratio:16/10;} .about-grid,.contact-grid{grid-template-columns:1fr; gap:32px;}}
+@media (max-width:800px){.proj-grid,.serv-grid{grid-template-columns:1fr 1fr;} .navlinks{display:none;} .stats-row{flex-wrap:wrap; row-gap:16px;}}
+@media (max-width:560px){.proj-grid,.serv-grid{grid-template-columns:1fr;}}
+@media (prefers-reduced-motion: reduce){.wire-anim{animation:none;}}
+
+/* ---------- admin shell ---------- */
+#admin-shell{display:flex; min-height:100vh;}
+.sidebar{width:220px; border-right:1px solid var(--border); background:var(--panel); flex-shrink:0; display:flex; flex-direction:column; padding:20px 0;}
+.sidebar .brand{font-family:'JetBrains Mono',monospace; font-size:13px; padding:0 20px 20px; border-bottom:1px solid var(--border); margin-bottom:12px; display:flex; align-items:center; gap:8px;}
+.sidebar .brand .dot{width:7px;height:7px;background:var(--cyan); transform:rotate(45deg);}
+.sidebar nav{flex:1;}
+.sidebar a{display:flex; align-items:center; gap:10px; padding:10px 20px; font-family:'JetBrains Mono',monospace; font-size:12.5px; color:var(--text-dim); border-left:2px solid transparent;}
+.sidebar a:hover{color:var(--text); background:var(--panel-2);}
+.sidebar a.active{color:var(--cyan); border-left-color:var(--cyan); background:var(--panel-2);}
+.sidebar .idx{color:var(--text-faint); width:18px; display:inline-block;}
+.sidebar .foot{padding:14px 20px; border-top:1px solid var(--border);}
+.content{flex:1; padding:32px 40px; max-width:1100px;}
+.topbar{display:flex; justify-content:space-between; align-items:center; margin-bottom:28px;}
+.topbar .eyebrow{margin-bottom:0;}
+#login-screen{min-height:100vh; display:flex; align-items:center; justify-content:center;}
+.login-box{width:320px; text-align:center;}
+.login-box .logo{justify-content:center; margin-bottom:24px;}
+.err{color:var(--danger); font-size:12px; margin-top:8px; font-family:'JetBrains Mono',monospace;}
+.kanban{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; align-items:start;}
+.kanban-col{background:var(--panel-2); border:1px solid var(--border); min-height:60px;}
+.kanban-col h4{font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--text-faint); text-transform:uppercase; padding:10px 12px; border-bottom:1px solid var(--border);}
+.kanban-card{padding:10px 12px; border-bottom:1px solid var(--border); font-size:12.5px;}
+.kanban-card .n{font-weight:600; color:var(--text); margin-bottom:3px;}
+.kanban-card .c{color:var(--text-dim); font-size:11.5px;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+/* ============================= DATA LAYER ============================= */
+const PIPELINE_STAGES = ['Prospección','Propuesta enviada','En negociación','Aprobado','En curso','Entregado','Facturado','Cerrado'];
+const MADUREZ = ['Prototipo','Production-ready','Vendible'];
+
+const CONFIG = {
+  GAS_URL: 'https://script.google.com/macros/s/AKfycbwSjf03pd4ht3nUkHBh6IchNJAoo2QFrdvG5V_9GNZA2NNrPMAmvt-AySoFP6PsZ5yG/exec'
+};
+
+// Esqueleto vacío — se rellena desde el GAS tras el login. No hay datos de ejemplo
+// para que un guardado accidental antes de cargar nunca sobreescriba el Sheet real.
+let DB = {
+  proyectos: [], clientes: [], biblioteca: [], tiempo: [], gastos: [], documentos: [],
+  fiscal: { avisYear:2025, rfr:0, parts:1, autresRevenus:0, dateAvis:'', cotisationRate:0.256, acre:'no', vlRequested:'no', vlThreshold:29315, tranches:[] }
+};
+let session = { authed:false, token:null, expiresAt:null, loaded:false };
+
+async function gasGet(action, params={}){
+  const url = new URL(CONFIG.GAS_URL);
+  url.searchParams.set('action', action);
+  Object.keys(params).forEach(k => url.searchParams.set(k, params[k]));
+  const res = await fetch(url.toString());
+  return res.json();
+}
+async function gasPost(action, payload={}){
+  const res = await fetch(CONFIG.GAS_URL, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'}, // evita preflight OPTIONS, que Apps Script no maneja
+    body: JSON.stringify(Object.assign({action}, payload))
+  });
+  return res.json();
+}
+
+async function loadFromGAS(){
+  const ind = document.getElementById('save-indicator');
+  if(ind) ind.textContent = 'cargando…';
+  const r = await gasGet('bootstrap', {token: session.token});
+  if(r.ok){
+    DB = Object.assign(DB, r.data);
+    session.loaded = true;
+    if(ind) ind.textContent = '';
+  } else {
+    if(ind) ind.textContent = 'error al cargar: '+(r.error||'?');
+    if(String(r.error||'').includes('sesión')){ session.authed=false; session.token=null; navigate('admin'); }
+  }
+}
+
+let saveTimeout=null;
+function saveDB(){
+  if(!session.token) return; // sin sesión no se guarda nada
+  clearTimeout(saveTimeout);
+  const ind = document.getElementById('save-indicator');
+  if(ind) ind.textContent = 'guardando…';
+  saveTimeout = setTimeout(async ()=>{
+    try{
+      const r = await gasPost('saveState', {token: session.token, data: DB});
+      if(ind) ind.textContent = r.ok ? 'guardado ✓' : ('error: '+(r.error||'?'));
+    }catch(e){ if(ind) ind.textContent='error de red al guardar'; }
+    setTimeout(()=>{ if(ind) ind.textContent=''; },2000);
+  }, 600);
+}
+function fmt(n){ return Math.round(n||0).toLocaleString('fr-FR') + ' €'; }
+function uid(list){ return list.length ? Math.max(...list.map(x=>x.id))+1 : 1; }
+
+/* ============================= ROUTER (hash, como #karen en Fais Cute) ============================= */
+window.addEventListener('hashchange', route);
+window.addEventListener('load', route);
+function navigate(path){ location.hash = path; } // path sin '#', ej. 'admin/dashboard'
+function adminSubpath(){
+  return location.hash.replace(/^#admin\/?/,'');
+}
+function route(){
+  if(location.hash.startsWith('#admin')){
+    if(!session.authed){ renderLogin(); }
+    else if(!session.loaded){ renderLoading(); loadFromGAS().then(()=>route()); }
+    else{ renderAdmin(adminSubpath()); }
+  } else {
+    renderPublic();
+  }
+}
+function renderLoading(){
+  document.getElementById('app').innerHTML = `<div id="login-screen"><div class="login-box"><div class="logo" style="justify-content:center;"><span class="dot"></span> NEA</div><p class="field-note" style="margin-top:16px;">Cargando datos desde el backend…</p></div></div>`;
+}
+
+/* ============================= LOGIN ============================= */
+function renderLogin(){
+  document.getElementById('app').innerHTML = `
+    <div id="login-screen">
+      <div class="login-box">
+        <div class="logo"><span class="dot"></span> NEA</div>
+        <label>PIN de administrador</label>
+        <input type="password" id="pin-input" placeholder="••••">
+        <div class="err" id="login-err"></div>
+        <button class="btn btn-primary" style="width:100%; margin-top:14px;" onclick="tryLogin()">Entrar</button>
+        <div class="field-note" style="margin-top:16px;">Prototipo: la sesión no persiste al recargar la página. En producción, el backend GAS gestionará el token de sesión con expiración real.</div>
+        <div style="margin-top:20px;"><a href="#" class="mono" style="font-size:12px; color:var(--text-faint);">← volver al sitio público</a></div>
+      </div>
+    </div>`;
+  document.getElementById('pin-input').addEventListener('keydown', e=>{ if(e.key==='Enter') tryLogin(); });
+}
+async function tryLogin(){
+  const val = document.getElementById('pin-input').value;
+  const btn = document.querySelector('#login-screen .btn-primary');
+  if(btn){ btn.disabled = true; btn.textContent = 'verificando…'; }
+  try{
+    const r = await gasPost('login', {pin: val});
+    if(r.ok){
+      session.authed = true; session.token = r.token; session.expiresAt = r.expiresAt; session.loaded = false;
+      navigate('admin/dashboard');
+    } else {
+      document.getElementById('login-err').textContent = r.error || 'PIN incorrecto.';
+      if(btn){ btn.disabled=false; btn.textContent='Entrar'; }
+    }
+  }catch(e){
+    document.getElementById('login-err').textContent = 'No se pudo contactar al servidor. Revisa la URL del GAS o tu conexión.';
+    if(btn){ btn.disabled=false; btn.textContent='Entrar'; }
+  }
+}
+function logout(){
+  if(session.token) gasPost('logout', {token: session.token}).catch(()=>{});
+  session.authed = false; session.token = null; session.loaded = false;
+  location.hash = '';
+}
+
+/* ============================= PUBLIC SITE — I18N ============================= */
+let currentLang = 'fr';
+const I18N = {
+  fr: {
+    nav:['Projets',"À propos",'Services','Contact'],
+    eyebrow:"Bureau d'études · Grasshopper / Rhino",
+    h1:"Ingénierie paramétrique pour des projets BTP complexes.",
+    lede:"NEA résout la géométrie, la structure et la fabrication numérique pour les bureaux d'études et entreprises qui ont besoin d'algorithmes, pas seulement de plans.",
+    ctaPrimary:'Voir les projets', ctaSecondary:'Parlons de votre projet',
+    stats:['Définitions GH','Ans de pratique','Itérations par projet'],
+    projTitle:'Travaux sélectionnés', projSub:"Chaque pièce part d'une contrainte réelle — structurelle, de fabrication ou environnementale — et aboutit à un algorithme réutilisable.",
+    aboutTitle:"Bureau d'études paramétrique",
+    aboutP1:"NEA travaille à la frontière entre le design et la logique : nous construisons des systèmes Grasshopper qui traduisent les contraintes de projet — structurelles, environnementales, de fabrication — en géométrie générative, optimisable et documentée.",
+    aboutP2:"Nous ne livrons pas une forme finale, nous livrons le système qui la génère. Chaque définition n'est pas seulement un résultat, c'est un outil que l'équipe projet peut continuer à utiliser.",
+    skillSoft:'Logiciels', skillCode:'Code',
+    lvlAdv:'avancé', lvlInt:'intermédiaire',
+    servTitle:'Comment nous travaillons', servSub:"Pour les bureaux d'architecture, d'ingénierie et les entreprises BTP.",
+    services:[
+      ['Conception paramétrique de projet','Façades, structures et géométrie complexe, du concept au modèle final.'],
+      ['Outils sur mesure','Plugins et définitions réutilisables pour automatiser les tâches de votre équipe.'],
+      ['Optimisation et analyse',"Setups d'optimisation structurelle ou environnementale avec des algorithmes évolutifs."],
+      ['Fabrication numérique','Géométrie prête pour la découpe CNC ou laser, avec nesting optimisé.']
+    ],
+    contactTitle:'Vous avez un projet<br>à la géométrie complexe ?',
+    metaK:['Disponibilité','Lieu','Réponse'], metaV:['Nouveaux projets','La Rochelle / À distance','24–48h'],
+    admin:'Admin', loading:'Chargement des projets…', loadError:'Impossible de charger les projets pour le moment.',
+    emptyProj:"Aucun projet n'est encore marqué comme public. Active-les depuis le panneau d'administration."
+  },
+  es: {
+    nav:['Proyectos','Sobre NEA','Servicios','Contacto'],
+    eyebrow:"Bureau d'études · Grasshopper / Rhino",
+    h1:'Ingeniería paramétrica para proyectos BTP complejos.',
+    lede:'NEA resuelve geometría, estructura y fabricación digital para estudios y constructoras que necesitan algoritmos, no solo planos.',
+    ctaPrimary:'Ver proyectos', ctaSecondary:'Hablemos de tu proyecto',
+    stats:['Definiciones GH','Años de práctica','Iteraciones por proyecto'],
+    projTitle:'Trabajo seleccionado', projSub:'Cada pieza parte de una restricción real — estructural, de fabricación o ambiental — y termina en un algoritmo reutilizable.',
+    aboutTitle:"Bureau d'études paramétrique",
+    aboutP1:'NEA trabaja en el límite entre el diseño y la lógica: construimos sistemas en Grasshopper que traducen criterios de proyecto — estructurales, ambientales, de fabricación — en geometría generativa, optimizable y documentada.',
+    aboutP2:'No entregamos una forma final, entregamos el sistema que la genera. Cada definición no es solo un resultado, es una herramienta que el equipo de proyecto puede seguir usando.',
+    skillSoft:'Software', skillCode:'Código',
+    lvlAdv:'avanzado', lvlInt:'intermedio',
+    servTitle:'Cómo trabajamos', servSub:'Para estudios de arquitectura, ingeniería y constructoras BTP.',
+    services:[
+      ['Diseño paramétrico de proyecto','Fachadas, estructuras y geometría compleja, de criterio a modelo final.'],
+      ['Herramientas a medida','Plugins y definiciones reutilizables para automatizar tareas de tu equipo.'],
+      ['Optimización y análisis','Setups de optimización estructural o ambiental con algoritmos evolutivos.'],
+      ['Fabricación digital','Geometría lista para CNC o corte láser, con nesting optimizado.']
+    ],
+    contactTitle:'¿Tienes un proyecto<br>con geometría difícil?',
+    metaK:['Disponibilidad','Ubicación','Respuesta'], metaV:['Proyectos nuevos','La Rochelle / Remoto','24–48h'],
+    admin:'Admin', loading:'Cargando proyectos…', loadError:'No se pudieron cargar los proyectos ahora mismo.',
+    emptyProj:'Aún no hay proyectos marcados como publicables. Márcalos desde el panel de administración.'
+  },
+  en: {
+    nav:['Projects','About NEA','Services','Contact'],
+    eyebrow:"Bureau d'études · Grasshopper / Rhino",
+    h1:'Parametric engineering for complex construction projects.',
+    lede:'NEA solves geometry, structure and digital fabrication for architecture and construction firms that need algorithms, not just drawings.',
+    ctaPrimary:'View projects', ctaSecondary:"Let's talk about your project",
+    stats:['GH definitions','Years of practice','Iterations per project'],
+    projTitle:'Selected work', projSub:'Each piece starts from a real constraint — structural, fabrication-related or environmental — and ends as a reusable algorithm.',
+    aboutTitle:'Parametric design office',
+    aboutP1:"NEA works at the edge of design and logic: we build Grasshopper systems that translate project constraints — structural, environmental, fabrication-related — into generative, optimisable and documented geometry.",
+    aboutP2:"We don't deliver a final shape, we deliver the system that generates it. Every definition isn't just a result, it's a tool the project team can keep using.",
+    skillSoft:'Software', skillCode:'Code',
+    lvlAdv:'advanced', lvlInt:'intermediate',
+    servTitle:'How we work', servSub:'For architecture and engineering firms and construction companies.',
+    services:[
+      ['Parametric project design','Facades, structures and complex geometry, from concept to final model.'],
+      ['Custom tools',"Reusable plugins and definitions to automate your team's repetitive tasks."],
+      ['Optimisation and analysis','Structural or environmental optimisation setups with evolutionary algorithms.'],
+      ['Digital fabrication','Geometry ready for CNC or laser cutting, with optimised nesting.']
+    ],
+    contactTitle:'Got a project with<br>difficult geometry?',
+    metaK:['Availability','Location','Response'], metaV:['New projects','La Rochelle / Remote','24–48h'],
+    admin:'Admin', loading:'Loading projects…', loadError:'Could not load the projects right now.',
+    emptyProj:'No projects are marked as public yet. Enable them from the admin panel.'
+  }
+};
+function setLang(l){ currentLang = l; renderPublic(); }
+
+/* ============================= PUBLIC SITE ============================= */
+function renderPublic(){
+  const t = I18N[currentLang];
+  renderPublicShell(t);
+  gasGet('publicProjects').then(r=>{
+    const items = (r && r.ok) ? r.data : [];
+    const el = document.getElementById('proj-grid-public');
+    if(el) el.outerHTML = buildPublicProjGrid(items, t);
+  }).catch(()=>{
+    const el = document.getElementById('proj-grid-public');
+    if(el) el.innerHTML = `<div class="empty" style="grid-column:1/-1;">${t.loadError}</div>`;
+  });
+}
+function buildPublicProjGrid(publicables, t){
+  return `<div class="proj-grid" id="proj-grid-public">${publicables.length ? publicables.map(p=>{
+    const loc = p[currentLang] || p.fr || {};
+    return `
+        <div class="proj-card">
+          <div class="proj-thumb">[ imagen del proyecto ]</div>
+          <div class="proj-body">
+            <div class="proj-tag">${loc.tag||p.tipo}</div>
+            <div class="proj-name">${p.nombre}</div>
+            <div class="proj-desc">${loc.desc||''}</div>
+            <div class="proj-tools">${(loc.tools||'').split(',').filter(x=>x.trim()).map(x=>`<span>${x.trim()}</span>`).join('')}</div>
+          </div>
+        </div>`;
+  }).join('') : `<div class="empty" style="grid-column:1/-1;">${t.emptyProj}</div>`}
+    </div>`;
+}
+function renderPublicShell(t){
+  document.getElementById('app').innerHTML = `
+  <div id="public">
+    <header><nav class="wrap">
+      <div class="logo"><span class="dot"></span> NEA</div>
+      <div class="navlinks">
+        <a href="#proyectos-pub"><span class="mono" style="color:var(--text-faint); margin-right:5px;">01</span>${t.nav[0]}</a>
+        <a href="#sobre-pub"><span class="mono" style="color:var(--text-faint); margin-right:5px;">02</span>${t.nav[1]}</a>
+        <a href="#servicios-pub"><span class="mono" style="color:var(--text-faint); margin-right:5px;">03</span>${t.nav[2]}</a>
+        <a href="#contacto-pub"><span class="mono" style="color:var(--text-faint); margin-right:5px;">04</span>${t.nav[3]}</a>
+      </div>
+      <div style="display:flex; align-items:center; gap:14px;">
+        <div class="lang-switch mono">
+          ${['fr','es','en'].map(l=>`<span class="lang-opt ${l===currentLang?'active':''}" onclick="setLang('${l}')">${l.toUpperCase()}</span>`).join('<span class="lang-sep">/</span>')}
+        </div>
+      </div>
+    </nav></header>
+
+    <section class="hero wrap">
+      <div class="hero-inner">
+        <div>
+          <div class="eyebrow">${t.eyebrow}</div>
+          <h1 class="display">${t.h1}</h1>
+          <p class="lede">${t.lede}</p>
+          <div class="hero-actions">
+            <a href="#proyectos-pub" class="btn btn-primary">${t.ctaPrimary}</a>
+            <a href="#contacto-pub" class="btn">${t.ctaSecondary}</a>
+          </div>
+          <div class="stats-row">
+            <div class="stat"><div class="num">30+</div><div class="lbl">${t.stats[0]}</div></div>
+            <div class="stat"><div class="num">6</div><div class="lbl">${t.stats[1]}</div></div>
+            <div class="stat"><div class="num">∞</div><div class="lbl">${t.stats[2]}</div></div>
+          </div>
+        </div>
+        <div class="graph-box">
+          <span class="tag">canvas.gh</span>
+          <span class="tag2">solver: enabled</span>
+          <svg class="graph" viewBox="0 0 380 400">
+            <path class="wire c wire-anim" d="M 70 60 C 110 60, 110 110, 150 110"></path>
+            <path class="wire c wire-anim" d="M 70 150 C 110 150, 110 110, 150 110"></path>
+            <path class="wire o wire-anim" d="M 230 110 C 260 110, 260 60, 290 60"></path>
+            <path class="wire c wire-anim" d="M 230 110 C 260 110, 260 170, 290 170"></path>
+            <path class="wire o wire-anim" d="M 150 230 C 190 230, 190 280, 230 280"></path>
+            <path class="wire c wire-anim" d="M 70 280 C 110 280, 110 280, 150 280"></path>
+            <path class="wire c wire-anim" d="M 70 230 C 110 230, 110 280, 150 280"></path>
+            <path class="wire o wire-anim" d="M 230 280 C 260 280, 260 330, 290 330"></path>
+            <path class="wire c wire-anim" d="M 150 110 C 190 110, 190 170, 230 170"></path>
+            <path class="wire c wire-anim" d="M 150 280 C 190 280, 190 200, 230 200"></path>
+            <g class="gnode"><rect x="20" y="44" width="50" height="32" rx="2"></rect><circle class="pin" cx="70" cy="60" r="2.5"></circle><text x="45" y="64" text-anchor="middle">Point</text></g>
+            <g class="gnode"><rect x="20" y="134" width="50" height="32" rx="2"></rect><circle class="pin" cx="70" cy="150" r="2.5"></circle><text x="45" y="154" text-anchor="middle">Curve</text></g>
+            <g class="gnode"><rect x="150" y="94" width="80" height="32" rx="2"></rect><circle class="pin" cx="150" cy="110" r="2.5"></circle><circle class="pin" cx="230" cy="110" r="2.5"></circle><text x="190" y="114" text-anchor="middle">Voronoi</text></g>
+            <g class="gnode"><rect x="290" y="44" width="60" height="32" rx="2"></rect><circle class="pin" cx="290" cy="60" r="2.5"></circle><text x="320" y="64" text-anchor="middle">Bake</text></g>
+            <g class="gnode"><rect x="290" y="154" width="70" height="32" rx="2"></rect><circle class="pin" cx="290" cy="170" r="2.5"></circle><text x="325" y="174" text-anchor="middle">Panelize</text></g>
+            <g class="gnode"><rect x="150" y="214" width="80" height="32" rx="2"></rect><circle class="pin" cx="150" cy="230" r="2.5"></circle><circle class="pin" cx="230" cy="230" r="2.5"></circle><text x="190" y="234" text-anchor="middle">Galapagos</text></g>
+            <g class="gnode"><rect x="20" y="264" width="50" height="32" rx="2"></rect><circle class="pin" cx="70" cy="280" r="2.5"></circle><text x="45" y="284" text-anchor="middle">Brep</text></g>
+            <g class="gnode"><rect x="20" y="214" width="50" height="32" rx="2"></rect><circle class="pin" cx="70" cy="230" r="2.5"></circle><text x="45" y="234" text-anchor="middle">List</text></g>
+            <g class="gnode"><rect x="150" y="264" width="80" height="32" rx="2"></rect><circle class="pin" cx="150" cy="280" r="2.5"></circle><circle class="pin" cx="230" cy="280" r="2.5"></circle><text x="190" y="284" text-anchor="middle">Optimize</text></g>
+            <g class="gnode"><rect x="290" y="314" width="60" height="32" rx="2"></rect><circle class="pin" cx="290" cy="330" r="2.5"></circle><text x="320" y="334" text-anchor="middle">Output</text></g>
+            <g class="gnode"><rect x="230" y="184" width="60" height="32" rx="2"></rect><circle class="pin" cx="230" cy="200" r="2.5"></circle><text x="260" y="204" text-anchor="middle">Mesh</text></g>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <section class="block tight hairline wrap" id="proyectos-pub">
+      <div class="sec-head">
+        <div><div class="sec-num mono">01 / ${t.nav[0]}</div><div class="sec-title">${t.projTitle}</div></div>
+        <div class="sec-sub">${t.projSub}</div>
+      </div>
+    </section>
+    <div class="proj-grid" id="proj-grid-public"><div class="empty" style="grid-column:1/-1;">${t.loading}</div></div>
+
+    <section class="block hairline wrap" id="sobre-pub">
+      <div class="about-grid">
+        <div>
+          <div class="sec-num mono">02 / ${t.nav[1]}</div>
+          <div class="sec-title" style="margin-top:8px;">${t.aboutTitle}</div>
+        </div>
+        <div class="about-text">
+          <p>${t.aboutP1}</p>
+          <p>${t.aboutP2}</p>
+          <div class="skill-cols" style="margin-top:30px;">
+            <div class="skill-group">
+              <h4>${t.skillSoft}</h4>
+              <ul>
+                <li>Grasshopper <span class="lvl">${t.lvlAdv}</span></li>
+                <li>Rhino 3D <span class="lvl">${t.lvlAdv}</span></li>
+                <li>Karamba3D <span class="lvl">${t.lvlInt}</span></li>
+                <li>Kangaroo Physics <span class="lvl">${t.lvlInt}</span></li>
+              </ul>
+            </div>
+            <div class="skill-group">
+              <h4>${t.skillCode}</h4>
+              <ul>
+                <li>GhPython <span class="lvl">${t.lvlAdv}</span></li>
+                <li>C# (.NET) <span class="lvl">${t.lvlInt}</span></li>
+                <li>Ladybug Tools <span class="lvl">${t.lvlInt}</span></li>
+                <li>Galapagos / Wallacei <span class="lvl">${t.lvlAdv}</span></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="block hairline wrap" id="servicios-pub">
+      <div class="sec-head">
+        <div><div class="sec-num mono">03 / ${t.nav[2]}</div><div class="sec-title">${t.servTitle}</div></div>
+        <div class="sec-sub">${t.servSub}</div>
+      </div>
+    </section>
+    <div class="serv-grid">
+      ${t.services.map((s,i)=>`<div class="serv-card"><div class="serv-num">0${i+1}</div><div><div class="serv-title">${s[0]}</div><div class="serv-desc">${s[1]}</div></div></div>`).join('')}
+    </div>
+
+    <section class="block wrap" id="contacto-pub">
+      <div class="contact-grid">
+        <div>
+          <div class="sec-num mono">04 / ${t.nav[3]}</div>
+          <div class="contact-title" style="margin-top:12px;">${t.contactTitle}</div>
+          <a href="mailto:contact@nea-etudes.fr" class="contact-email">contact@nea-etudes.fr</a>
+        </div>
+        <div class="contact-meta">
+          <div><span class="k">${t.metaK[0]}</span> · ${t.metaV[0]}</div>
+          <div><span class="k">${t.metaK[1]}</span> · ${t.metaV[1]}</div>
+          <div><span class="k">${t.metaK[2]}</span> · ${t.metaV[2]}</div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="wrap">
+      <div>© 2026 NEA</div>
+      <div><a href="#" onclick="return false;">LinkedIn</a><a href="#" onclick="return false;">Food4Rhino</a></div>
+    </footer>
+  </div>`;
+}
+
+/* ============================= ADMIN SHELL ============================= */
+const MODULES = [
+  {key:'dashboard', label:'Dashboard', idx:'01'},
+  {key:'proyectos', label:'Proyectos', idx:'02'},
+  {key:'clientes', label:'Clientes', idx:'03'},
+  {key:'biblioteca', label:'Biblioteca GH', idx:'04'},
+  {key:'tiempo', label:'Tiempo', idx:'05'},
+  {key:'finanzas', label:'Finanzas', idx:'06'},
+  {key:'impuestos', label:'Impuestos', idx:'07'},
+  {key:'documentos', label:'Documentos', idx:'08'}
+];
+
+function renderAdmin(subpath){
+  const parts = subpath.split('/').filter(Boolean);
+  const modKey = parts[0] || 'dashboard';
+  document.getElementById('app').innerHTML = `
+    <div id="admin-shell">
+      <div class="sidebar">
+        <div class="brand"><span class="dot"></span> NEA · admin</div>
+        <nav>${MODULES.map(m=>`<a href="#admin/${m.key}" class="${m.key===modKey?'active':''}"><span class="idx mono">${m.idx}</span>${m.label}</a>`).join('')}</nav>
+        <div class="foot">
+          <a href="#" class="mono" style="font-size:11.5px; color:var(--text-faint); display:block; margin-bottom:8px;">← sitio público</a>
+          <button class="btn btn-sm" style="width:100%;" onclick="logout()">Cerrar sesión</button>
+        </div>
+      </div>
+      <div class="content">
+        <div class="topbar">
+          <div class="eyebrow mono">NEA · panel interno</div>
+          <span class="save-indicator" id="save-indicator"></span>
+        </div>
+        <div id="module-root"></div>
+      </div>
+    </div>`;
+  const renderers = {dashboard:renderDashboard, proyectos:renderProyectos, clientes:renderClientes, biblioteca:renderBiblioteca, tiempo:renderTiempo, finanzas:renderFinanzas, impuestos:renderImpuestos, documentos:renderDocumentos};
+  (renderers[modKey]||renderDashboard)(parts.slice(1));
+}
+function root(){ return document.getElementById('module-root'); }
+
+/* ============================= DASHBOARD ============================= */
+function renderDashboard(){
+  const activos = DB.proyectos.filter(p=>p.etapa!=='Cerrado' && p.etapa!=='Facturado');
+  const caFacturado = DB.proyectos.filter(p=>['Facturado','Cerrado'].includes(p.etapa)).reduce((s,p)=>s+ (p.honorarios||0),0);
+  const pipelineValue = DB.proyectos.filter(p=>['Prospección','Propuesta enviada','En negociación'].includes(p.etapa)).reduce((s,p)=>s+(p.honorarios||0),0);
+  const horasFact = DB.tiempo.filter(t=>t.facturable).reduce((s,t)=>s+t.horas,0);
+  const horasTotal = DB.tiempo.reduce((s,t)=>s+t.horas,0);
+  const utilizacion = horasTotal ? Math.round((horasFact/horasTotal)*100) : 0;
+  const gastosTotal = DB.gastos.reduce((s,g)=>s+g.monto,0);
+
+  root().innerHTML = `
+    <h2 class="mod-title">Resumen ejecutivo</h2>
+    <p class="mod-desc">Vista rápida del estado de NEA — no incluye el portafolio público.</p>
+    <div class="grid" style="margin-bottom:24px;">
+      <div class="metric"><div class="lbl">CA facturado</div><div class="val">${fmt(caFacturado)}</div></div>
+      <div class="metric"><div class="lbl">Pipeline (propuestas)</div><div class="val">${fmt(pipelineValue)}</div></div>
+      <div class="metric"><div class="lbl">Proyectos activos</div><div class="val">${activos.length}</div></div>
+      <div class="metric"><div class="lbl">Tasa de utilización</div><div class="val">${utilizacion}%</div></div>
+      <div class="metric"><div class="lbl">Gastos registrados</div><div class="val">${fmt(gastosTotal)}</div></div>
+      <div class="metric"><div class="lbl">Definiciones en biblioteca</div><div class="val">${DB.biblioteca.length}</div></div>
+    </div>
+    <div class="card">
+      <h3 style="font-family:'Space Grotesk',sans-serif; font-size:15px; margin-bottom:14px;">Pipeline por etapa</h3>
+      <div class="kanban">
+        ${PIPELINE_STAGES.map(st=>{
+          const items = DB.proyectos.filter(p=>p.etapa===st);
+          return `<div class="kanban-col"><h4>${st} (${items.length})</h4>${items.map(p=>`<div class="kanban-card"><div class="n">${p.nombre}</div><div class="c">${p.cliente} · ${fmt(p.honorarios)}</div></div>`).join('') || ''}</div>`;
+        }).join('')}
+      </div>
+    </div>`;
+}
+
+/* ============================= PROYECTOS ============================= */
+let editingProyectoId = null;
+function renderProyectos(){
+  root().innerHTML = `
+    <h2 class="mod-title">Proyectos</h2>
+    <p class="mod-desc">Pipeline comercial completo — de la prospección a la facturación.</p>
+    <div class="card">
+      <h3 style="font-family:'Space Grotesk',sans-serif; font-size:14px; margin-bottom:12px;">Nuevo proyecto</h3>
+      <div class="grid">
+        <div><label>Nombre</label><input id="p-nombre"></div>
+        <div><label>Cliente</label><input id="p-cliente" list="clientes-list">
+          <datalist id="clientes-list">${DB.clientes.map(c=>`<option value="${c.nombre}">`).join('')}</datalist>
+        </div>
+        <div><label>Tipo</label><input id="p-tipo" placeholder="Fachada paramétrica, estructura…"></div>
+        <div><label>Etapa</label><select id="p-etapa">${PIPELINE_STAGES.map(s=>`<option>${s}</option>`).join('')}</select></div>
+        <div><label>Honorarios (€)</label><input type="number" id="p-honorarios"></div>
+        <div><label>Horas estimadas</label><input type="number" id="p-horasEst"></div>
+        <div><label>Fecha</label><input type="date" id="p-fecha"></div>
+      </div>
+      <button class="btn btn-primary" style="margin-top:14px;" onclick="addProyecto()">+ añadir proyecto</button>
+    </div>
+    <table>
+      <thead><tr><th>Nombre</th><th>Cliente</th><th>Etapa</th><th>Honorarios</th><th>Horas est/real</th><th>Público</th><th></th></tr></thead>
+      <tbody>${DB.proyectos.map(p=>`
+        <tr>
+          <td>${p.nombre}</td>
+          <td>${p.cliente}</td>
+          <td><select onchange="setProyectoEtapa(${p.id}, this.value)">${PIPELINE_STAGES.map(s=>`<option ${s===p.etapa?'selected':''}>${s}</option>`).join('')}</select></td>
+          <td>${fmt(p.honorarios)}</td>
+          <td>${p.horasEst||0} / ${p.horasReal||0}</td>
+          <td><input type="checkbox" ${p.publicable?'checked':''} onchange="toggleProyectoPublico(${p.id}, this.checked)"></td>
+          <td style="white-space:nowrap;">
+            <button class="btn btn-sm" onclick="toggleEditProyecto(${p.id})">${editingProyectoId===p.id?'Cerrar':'Editar'}</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteItem('proyectos',${p.id})">✕</button>
+          </td>
+        </tr>
+        ${editingProyectoId===p.id ? renderEditProyectoForm(p) : ''}
+        `).join('') || `<tr><td colspan="7" class="empty">Sin proyectos aún.</td></tr>`}
+      </tbody>
+    </table>
+    <p class="field-note" style="margin-top:10px;">Marca "público" para que el proyecto aparezca en el portafolio del sitio. Usa "Editar" para completar la ficha pública (tag, descripción, herramientas) y todos los demás datos.</p>`;
+}
+let editProyectoLang = 'fr';
+function renderEditProyectoForm(p){
+  const L = editProyectoLang;
+  const suf = L==='fr' ? '' : '_'+L;
+  const tag = p['publicTag'+suf]||'', desc = p['publicDesc'+suf]||'', tools = p['publicTools'+suf]||'';
+  return `<tr><td colspan="7">
+    <div class="card" style="margin:8px 0 4px; background:var(--panel-2);">
+      <div class="grid">
+        <div><label>Nombre</label><input id="e-nombre-${p.id}" value="${p.nombre}"></div>
+        <div><label>Cliente</label><input id="e-cliente-${p.id}" value="${p.cliente}"></div>
+        <div><label>Tipo</label><input id="e-tipo-${p.id}" value="${p.tipo}"></div>
+        <div><label>Honorarios (€)</label><input type="number" id="e-honorarios-${p.id}" value="${p.honorarios}"></div>
+        <div><label>Horas estimadas</label><input type="number" id="e-horasEst-${p.id}" value="${p.horasEst||0}"></div>
+        <div><label>Horas reales</label><input type="number" id="e-horasReal-${p.id}" value="${p.horasReal||0}"></div>
+        <div><label>Fecha</label><input type="date" id="e-fecha-${p.id}" value="${p.fecha||''}"></div>
+      </div>
+      <div style="margin-top:12px;"><label>Notas internas</label><textarea id="e-notas-${p.id}" rows="2">${p.notas||''}</textarea></div>
+
+      <div style="margin-top:20px; display:flex; align-items:baseline; justify-content:space-between;">
+        <div class="field-note" style="color:var(--cyan); margin:0;">Ficha pública (visible en el portafolio si "público" está activo)</div>
+        <div class="tabs" style="border-bottom:none; margin-bottom:0;">
+          ${['fr','es','en'].map(l=>`<div class="tab ${l===L?'active':''}" style="padding:4px 10px;" onclick="setEditProyectoLang(${p.id},'${l}')">${l.toUpperCase()}</div>`).join('')}
+        </div>
+      </div>
+      <p class="field-note" style="margin-top:2px;">Cada pestaña guarda su propia traducción — el francés (FR) es el idioma por defecto del sitio.</p>
+      <div class="grid" style="margin-top:8px;">
+        <div><label>Tag público (${L.toUpperCase()})</label><input id="e-publicTag-${p.id}" value="${tag}"></div>
+        <div style="grid-column:span 2;"><label>Herramientas — separadas por coma (${L.toUpperCase()})</label><input id="e-publicTools-${p.id}" value="${tools}"></div>
+      </div>
+      <div style="margin-top:12px;"><label>Descripción pública (${L.toUpperCase()})</label><textarea id="e-publicDesc-${p.id}" rows="2">${desc}</textarea></div>
+
+      <div style="margin-top:14px; display:flex; gap:10px;">
+        <button class="btn btn-primary" onclick="saveEditProyecto(${p.id})">Guardar cambios</button>
+        <button class="btn" onclick="toggleEditProyecto(${p.id})">Cancelar</button>
+      </div>
+    </div>
+  </td></tr>`;
+}
+function setEditProyectoLang(id, lang){
+  saveEditProyectoFieldsOnly(id);
+  editProyectoLang = lang;
+  renderProyectos();
+}
+// Guarda solo los campos de idioma actuales sin cerrar el formulario, al cambiar de pestaña.
+function saveEditProyectoFieldsOnly(id){
+  const p = DB.proyectos.find(x=>x.id===id);
+  if(!p) return;
+  const L = editProyectoLang, suf = L==='fr' ? '' : '_'+L;
+  const g = f => { const el = document.getElementById(f+'-'+id); return el ? el.value : undefined; };
+  const tag=g('e-publicTag'), tools=g('e-publicTools'), desc=g('e-publicDesc');
+  if(tag!==undefined) p['publicTag'+suf]=tag;
+  if(tools!==undefined) p['publicTools'+suf]=tools;
+  if(desc!==undefined) p['publicDesc'+suf]=desc;
+}
+function toggleEditProyecto(id){ editingProyectoId = editingProyectoId===id ? null : id; editProyectoLang='fr'; renderProyectos(); }
+function saveEditProyecto(id){
+  const p = DB.proyectos.find(x=>x.id===id);
+  if(!p) return;
+  const g = f => document.getElementById(f+'-'+id).value;
+  p.nombre = g('e-nombre').trim() || p.nombre;
+  p.cliente = g('e-cliente');
+  p.tipo = g('e-tipo');
+  p.honorarios = parseFloat(g('e-honorarios'))||0;
+  p.horasEst = parseFloat(g('e-horasEst'))||0;
+  p.horasReal = parseFloat(g('e-horasReal'))||0;
+  p.fecha = g('e-fecha');
+  p.notas = g('e-notas');
+  saveEditProyectoFieldsOnly(id);
+  editingProyectoId = null;
+  saveDB(); renderProyectos();
+}
+function addProyecto(){
+  const nombre = document.getElementById('p-nombre').value.trim();
+  if(!nombre) return alert('Ponle un nombre al proyecto.');
+  DB.proyectos.push({
+    id: uid(DB.proyectos), nombre, cliente: document.getElementById('p-cliente').value,
+    tipo: document.getElementById('p-tipo').value, etapa: document.getElementById('p-etapa').value,
+    honorarios: parseFloat(document.getElementById('p-honorarios').value)||0,
+    horasEst: parseFloat(document.getElementById('p-horasEst').value)||0, horasReal:0,
+    fecha: document.getElementById('p-fecha').value, notas:'', publicable:false, publicTag:'', publicDesc:'', publicTools:''
+  });
+  saveDB(); renderProyectos();
+}
+function setProyectoEtapa(id, etapa){ const p=DB.proyectos.find(x=>x.id===id); if(p){p.etapa=etapa; saveDB();} }
+function toggleProyectoPublico(id, val){ const p=DB.proyectos.find(x=>x.id===id); if(p){p.publicable=val; if(val && !p.publicTag) p.publicTag=p.tipo; if(val && !p.publicDesc) p.publicDesc=p.notas||''; if(val && !p.publicTools) p.publicTools=''; saveDB();} }
+function deleteItem(coll, id){ if(!confirm('¿Eliminar este registro?')) return; DB[coll] = DB[coll].filter(x=>x.id!==id); saveDB(); route(); }
+
+/* ============================= CLIENTES ============================= */
+function renderClientes(){
+  root().innerHTML = `
+    <h2 class="mod-title">Clientes</h2>
+    <p class="mod-desc">CRM ligero — empresas BTP con las que trabajas.</p>
+    <div class="card">
+      <div class="grid">
+        <div><label>Nombre</label><input id="c-nombre"></div>
+        <div><label>Contacto</label><input id="c-contacto"></div>
+        <div><label>Email</label><input id="c-email"></div>
+        <div><label>Recurrencia</label><select id="c-recurrencia"><option value="puntual">Puntual</option><option value="recurrente">Recurrente</option></select></div>
+      </div>
+      <button class="btn btn-primary" style="margin-top:14px;" onclick="addCliente()">+ añadir cliente</button>
+    </div>
+    <table>
+      <thead><tr><th>Nombre</th><th>Contacto</th><th>Email</th><th>Recurrencia</th><th>Proyectos</th><th></th></tr></thead>
+      <tbody>${DB.clientes.map(c=>{
+        const n = DB.proyectos.filter(p=>p.cliente===c.nombre).length;
+        return `<tr><td>${c.nombre}</td><td>${c.contacto||'—'}</td><td>${c.email||'—'}</td>
+          <td><span class="pill ${c.recurrencia==='recurrente'?'tag-cyan':'tag-dim'}">${c.recurrencia}</span></td>
+          <td>${n}</td><td><button class="btn btn-sm btn-danger" onclick="deleteItem('clientes',${c.id})">✕</button></td></tr>`;
+      }).join('') || `<tr><td colspan="6" class="empty">Sin clientes aún.</td></tr>`}
+      </tbody>
+    </table>`;
+}
+function addCliente(){
+  const nombre = document.getElementById('c-nombre').value.trim();
+  if(!nombre) return alert('Falta el nombre del cliente.');
+  DB.clientes.push({id:uid(DB.clientes), nombre, contacto:document.getElementById('c-contacto').value, email:document.getElementById('c-email').value, telefono:'', recurrencia:document.getElementById('c-recurrencia').value});
+  saveDB(); renderClientes();
+}
+
+/* ============================= BIBLIOTECA GH ============================= */
+function renderBiblioteca(){
+  root().innerHTML = `
+    <h2 class="mod-title">Biblioteca de definiciones GH</h2>
+    <p class="mod-desc">Tu ventaja competitiva real — cataloga lo que ya resolviste para reutilizarlo.</p>
+    <div class="card">
+      <div class="grid">
+        <div><label>Nombre</label><input id="b-nombre"></div>
+        <div><label>Madurez</label><select id="b-madurez">${MADUREZ.map(m=>`<option>${m}</option>`).join('')}</select></div>
+        <div><label>Plugins usados</label><input id="b-plugins" placeholder="Kangaroo, Karamba3D…"></div>
+        <div><label>Proyectos donde se usó</label><input id="b-proyectos"></div>
+      </div>
+      <div style="margin-top:12px;"><label>Descripción</label><textarea id="b-desc" rows="2"></textarea></div>
+      <button class="btn btn-primary" style="margin-top:14px;" onclick="addBiblioteca()">+ añadir definición</button>
+    </div>
+    <table>
+      <thead><tr><th>Nombre</th><th>Madurez</th><th>Plugins</th><th>Descripción</th><th></th></tr></thead>
+      <tbody>${DB.biblioteca.map(b=>`
+        <tr><td>${b.nombre}</td><td><span class="pill ${b.madurez==='Vendible'?'tag-cyan':b.madurez==='Production-ready'?'tag-orange':'tag-dim'}">${b.madurez}</span></td>
+        <td>${b.plugins}</td><td style="max-width:280px;">${b.descripcion}</td>
+        <td><button class="btn btn-sm btn-danger" onclick="deleteItem('biblioteca',${b.id})">✕</button></td></tr>`).join('') || `<tr><td colspan="5" class="empty">Aún no has catalogado definiciones.</td></tr>`}
+      </tbody>
+    </table>`;
+}
+function addBiblioteca(){
+  const nombre = document.getElementById('b-nombre').value.trim();
+  if(!nombre) return alert('Falta el nombre de la definición.');
+  DB.biblioteca.push({id:uid(DB.biblioteca), nombre, madurez:document.getElementById('b-madurez').value, plugins:document.getElementById('b-plugins').value, descripcion:document.getElementById('b-desc').value, proyectos:document.getElementById('b-proyectos').value});
+  saveDB(); renderBiblioteca();
+}
+
+/* ============================= TIEMPO ============================= */
+function renderTiempo(){
+  const totalFact = DB.tiempo.filter(t=>t.facturable).reduce((s,t)=>s+t.horas*t.tarifa,0);
+  root().innerHTML = `
+    <h2 class="mod-title">Tiempo & facturación</h2>
+    <p class="mod-desc">Registro de horas — independiente de la facturación electrónica (eso lo gestiona la plataforma agréée).</p>
+    <div class="card" style="border-color:var(--border); background:rgba(95,216,230,.04);">
+      <div class="field-note">Facturación electrónica: aún no hay plataforma agréée conectada. Recomendado: Pennylane (API pública + webhooks). <button class="btn btn-sm" style="margin-left:8px;" onclick="alert('Aquí se abriría el flujo OAuth de conexión con Pennylane en la versión conectada al backend GAS.')">Conectar Pennylane</button></div>
+    </div>
+    <div class="card">
+      <div class="grid">
+        <div><label>Proyecto</label><select id="t-proyecto">${DB.proyectos.map(p=>`<option value="${p.id}">${p.nombre}</option>`).join('')}</select></div>
+        <div><label>Fecha</label><input type="date" id="t-fecha"></div>
+        <div><label>Horas</label><input type="number" id="t-horas"></div>
+        <div><label>Tarifa (€/h)</label><input type="number" id="t-tarifa" value="65"></div>
+        <div><label>Facturable</label><select id="t-facturable"><option value="true">Sí</option><option value="false">No</option></select></div>
+      </div>
+      <button class="btn btn-primary" style="margin-top:14px;" onclick="addTiempo()">+ registrar horas</button>
+    </div>
+    <div class="metric" style="margin-bottom:16px; max-width:260px;"><div class="lbl">Valor horas facturables</div><div class="val">${fmt(totalFact)}</div></div>
+    <table>
+      <thead><tr><th>Proyecto</th><th>Fecha</th><th>Horas</th><th>Tarifa</th><th>Facturable</th><th>Valor</th><th></th></tr></thead>
+      <tbody>${DB.tiempo.map(t=>{
+        const p = DB.proyectos.find(x=>x.id===t.proyectoId);
+        return `<tr><td>${p?p.nombre:'—'}</td><td>${t.fecha}</td><td>${t.horas}</td><td>${t.tarifa}€</td>
+          <td><span class="pill ${t.facturable?'tag-cyan':'tag-dim'}">${t.facturable?'sí':'no'}</span></td>
+          <td>${fmt(t.horas*t.tarifa)}</td><td><button class="btn btn-sm btn-danger" onclick="deleteItem('tiempo',${t.id})">✕</button></td></tr>`;
+      }).join('') || `<tr><td colspan="7" class="empty">Sin horas registradas.</td></tr>`}
+      </tbody>
+    </table>`;
+}
+function addTiempo(){
+  const proyectoId = parseInt(document.getElementById('t-proyecto').value);
+  const horas = parseFloat(document.getElementById('t-horas').value)||0;
+  if(!horas) return alert('Indica cuántas horas.');
+  DB.tiempo.push({id:uid(DB.tiempo), proyectoId, fecha:document.getElementById('t-fecha').value, horas, tarifa:parseFloat(document.getElementById('t-tarifa').value)||0, facturable: document.getElementById('t-facturable').value==='true'});
+  const p = DB.proyectos.find(x=>x.id===proyectoId);
+  if(p) p.horasReal = (p.horasReal||0)+horas;
+  saveDB(); renderTiempo();
+}
+
+/* ============================= FINANZAS ============================= */
+function renderFinanzas(){
+  const ingresos = DB.proyectos.filter(p=>['Facturado','Cerrado'].includes(p.etapa)).reduce((s,p)=>s+p.honorarios,0);
+  const gastos = DB.gastos.reduce((s,g)=>s+g.monto,0);
+  const cashflow = ingresos - gastos;
+  root().innerHTML = `
+    <h2 class="mod-title">Finanzas</h2>
+    <p class="mod-desc">Ingresos, gastos y rentabilidad por proyecto.</p>
+    <div class="grid" style="margin-bottom:20px;">
+      <div class="metric"><div class="lbl">Ingresos facturados</div><div class="val" style="color:var(--ok)">${fmt(ingresos)}</div></div>
+      <div class="metric"><div class="lbl">Gastos</div><div class="val" style="color:var(--orange)">${fmt(gastos)}</div></div>
+      <div class="metric"><div class="lbl">Cashflow neto</div><div class="val">${fmt(cashflow)}</div></div>
+    </div>
+    <div class="card">
+      <h3 style="font-family:'Space Grotesk',sans-serif; font-size:14px; margin-bottom:12px;">Registrar gasto</h3>
+      <div class="grid">
+        <div><label>Fecha</label><input type="date" id="g-fecha"></div>
+        <div><label>Concepto</label><input id="g-concepto"></div>
+        <div><label>Monto (€)</label><input type="number" id="g-monto"></div>
+        <div><label>Categoría</label><input id="g-categoria" placeholder="Software, licencias…"></div>
+      </div>
+      <button class="btn btn-primary" style="margin-top:14px;" onclick="addGasto()">+ registrar gasto</button>
+    </div>
+    <table style="margin-bottom:24px;">
+      <thead><tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><th>Monto</th><th></th></tr></thead>
+      <tbody>${DB.gastos.map(g=>`<tr><td>${g.fecha}</td><td>${g.concepto}</td><td>${g.categoria}</td><td>${fmt(g.monto)}</td><td><button class="btn btn-sm btn-danger" onclick="deleteItem('gastos',${g.id})">✕</button></td></tr>`).join('') || `<tr><td colspan="5" class="empty">Sin gastos registrados.</td></tr>`}</tbody>
+    </table>
+    <div class="card">
+      <h3 style="font-family:'Space Grotesk',sans-serif; font-size:14px; margin-bottom:12px;">Rentabilidad por proyecto</h3>
+      <table>
+        <thead><tr><th>Proyecto</th><th>Honorarios</th><th>Horas reales</th><th>€/h objetivo (65€)</th><th>Rentabilidad</th></tr></thead>
+        <tbody>${DB.proyectos.map(p=>{
+          const costoHoras = (p.horasReal||0)*65;
+          const rent = p.honorarios - costoHoras;
+          const ok = rent >= 0;
+          return `<tr><td>${p.nombre}</td><td>${fmt(p.honorarios)}</td><td>${p.horasReal||0}</td><td>${fmt(costoHoras)}</td>
+            <td style="color:${ok?'var(--ok)':'var(--danger)'}">${fmt(rent)}</td></tr>`;
+        }).join('') || `<tr><td colspan="5" class="empty">Sin proyectos.</td></tr>`}</tbody>
+      </table>
+      <p class="field-note" style="margin-top:10px;">Rentabilidad = honorarios − (horas reales × tarifa objetivo). Ajusta la tarifa objetivo según tu costo-hora real.</p>
+    </div>`;
+}
+function addGasto(){
+  const monto = parseFloat(document.getElementById('g-monto').value)||0;
+  if(!monto) return alert('Indica un monto.');
+  DB.gastos.push({id:uid(DB.gastos), fecha:document.getElementById('g-fecha').value, concepto:document.getElementById('g-concepto').value, monto, categoria:document.getElementById('g-categoria').value});
+  saveDB(); renderFinanzas();
+}
+
+/* ============================= DOCUMENTOS ============================= */
+function renderDocumentos(){
+  root().innerHTML = `
+    <h2 class="mod-title">Documentos</h2>
+    <p class="mod-desc">Registro de entregables por proyecto (metadatos — el almacenamiento real iría en Drive vía GAS).</p>
+    <div class="card">
+      <div class="grid">
+        <div><label>Nombre</label><input id="d-nombre"></div>
+        <div><label>Proyecto</label><select id="d-proyecto">${DB.proyectos.map(p=>`<option value="${p.id}">${p.nombre}</option>`).join('')}</select></div>
+        <div><label>Tipo</label><input id="d-tipo" placeholder="Devis, informe, plano…"></div>
+        <div><label>Fecha</label><input type="date" id="d-fecha"></div>
+      </div>
+      <button class="btn btn-primary" style="margin-top:14px;" onclick="addDocumento()">+ registrar documento</button>
+    </div>
+    <table>
+      <thead><tr><th>Nombre</th><th>Proyecto</th><th>Tipo</th><th>Fecha</th><th></th></tr></thead>
+      <tbody>${DB.documentos.map(d=>{
+        const p = DB.proyectos.find(x=>x.id===d.proyectoId);
+        return `<tr><td>${d.nombre}</td><td>${p?p.nombre:'—'}</td><td>${d.tipo}</td><td>${d.fecha}</td><td><button class="btn btn-sm btn-danger" onclick="deleteItem('documentos',${d.id})">✕</button></td></tr>`;
+      }).join('') || `<tr><td colspan="5" class="empty">Sin documentos registrados.</td></tr>`}</tbody>
+    </table>`;
+}
+function addDocumento(){
+  const nombre = document.getElementById('d-nombre').value.trim();
+  if(!nombre) return alert('Falta el nombre del documento.');
+  DB.documentos.push({id:uid(DB.documentos), nombre, proyectoId:parseInt(document.getElementById('d-proyecto').value), tipo:document.getElementById('d-tipo').value, fecha:document.getElementById('d-fecha').value});
+  saveDB(); renderDocumentos();
+}
+
+/* ============================= IMPUESTOS (incluye el simulador) ============================= */
+const BAREME = [{min:0,max:11600,rate:0},{min:11600,max:29579,rate:0.11},{min:29579,max:84577,rate:0.30},{min:84577,max:181917,rate:0.41},{min:181917,max:Infinity,rate:0.45}];
+const ABATTEMENT = 0.34, VL_RATE = 0.022, PLAFOND_CA = 77700;
+let impuestosTab = 'resumen';
+
+function renderImpuestos(){
+  root().innerHTML = `
+    <h2 class="mod-title">Impuestos</h2>
+    <p class="mod-desc">Estado fiscal de NEA, simulador de optimización y calendario de vencimientos.</p>
+    <div class="tabs">
+      <div class="tab ${impuestosTab==='resumen'?'active':''}" onclick="setImpuestosTab('resumen')">Resumen</div>
+      <div class="tab ${impuestosTab==='simulador'?'active':''}" onclick="setImpuestosTab('simulador')">Simulador VL</div>
+      <div class="tab ${impuestosTab==='calendario'?'active':''}" onclick="setImpuestosTab('calendario')">Calendario</div>
+    </div>
+    <div id="impuestos-body"></div>`;
+  renderImpuestosBody();
+}
+function setImpuestosTab(t){ impuestosTab = t; renderImpuestos(); }
+function renderImpuestosBody(){
+  const el = document.getElementById('impuestos-body');
+  if(impuestosTab==='resumen') return renderFiscalResumen(el);
+  if(impuestosTab==='simulador') return renderFiscalSimulador(el);
+  if(impuestosTab==='calendario') return renderFiscalCalendario(el);
+}
+function renderFiscalResumen(el){
+  const f = DB.fiscal;
+  const caTotal = f.tranches.reduce((s,t)=>s+t.amount,0);
+  const eligible = f.rfr <= f.vlThreshold*f.parts;
+  el.innerHTML = `
+    <div class="grid" style="margin-bottom:20px;">
+      <div class="metric"><div class="lbl">CA acumulado (tramos)</div><div class="val">${fmt(caTotal)}</div></div>
+      <div class="metric"><div class="lbl">VL solicitado</div><div class="val" style="font-size:18px;">${f.vlRequested==='si'?'Sí':'No'}</div></div>
+      <div class="metric"><div class="lbl">Elegible por RFR</div><div class="val" style="font-size:18px; color:${eligible?'var(--ok)':'var(--danger)'}">${eligible?'Sí':'No'}</div></div>
+      <div class="metric"><div class="lbl">% del plafond micro-BNC</div><div class="val">${Math.round((caTotal/PLAFOND_CA)*100)}%</div></div>
+    </div>
+    <div class="card">
+      <div class="grid">
+        <div><label>Año del avis (revenus de)</label><input id="f-avisYear" type="number" value="${f.avisYear}" onchange="updateFiscal('avisYear',this.value,true)"></div>
+        <div><label>RFR</label><input id="f-rfr" type="number" value="${f.rfr}" onchange="updateFiscal('rfr',this.value,true)"></div>
+        <div><label>Partes fiscales</label><input id="f-parts" type="number" step="0.5" value="${f.parts}" onchange="updateFiscal('parts',this.value,true)"></div>
+        <div><label>Otros ingresos (salario neto imponible)</label><input id="f-autres" type="number" value="${f.autresRevenus}" onchange="updateFiscal('autresRevenus',this.value,true)"></div>
+        <div><label>¿VL solicitado para el próximo año?</label><select onchange="updateFiscal('vlRequested',this.value,false)"><option value="no" ${f.vlRequested==='no'?'selected':''}>No</option><option value="si" ${f.vlRequested==='si'?'selected':''}>Sí</option></select></div>
+      </div>
+      <p class="field-note" style="margin-top:12px;">Estos datos alimentan el simulador. Actualízalos cada vez que recibas un nuevo avis d'impôt.</p>
+    </div>`;
+}
+function updateFiscal(field, value, isNumber){
+  DB.fiscal[field] = isNumber ? parseFloat(value)||0 : value;
+  saveDB(); renderImpuestosBody();
+}
+function renderFiscalCalendario(el){
+  const f = DB.fiscal;
+  const items = [];
+  const y = new Date().getFullYear();
+  const deadlineVL = new Date(y,8,30);
+  items.push({date:deadlineVL, label:'Fecha límite VL', desc:`Último día para pedir el versement libératoire con efecto 01/01/${y+1}.`});
+  [[0,31],[3,30],[6,31],[9,31]].forEach(([m,d])=>{
+    let date = new Date(y,m,d);
+    if(date < new Date()) date = new Date(y+1,m,d);
+    items.push({date, label:'Declaración trimestral URSSAF', desc:'Fecha aproximada — confirma el día exacto en autoentrepreneur.urssaf.fr.'});
+  });
+  items.push({date:new Date(f.avisYear+2,6,15), label:"Avis d'impôt esperado", desc:`Correspondiente a los ingresos de ${f.avisYear+1}. Actualiza el resumen fiscal cuando llegue.`});
+  items.sort((a,b)=>a.date-b.date);
+  el.innerHTML = `<div class="card">${items.slice(0,6).map(it=>`
+    <div style="display:flex; gap:16px; padding:12px 0; border-top:1px solid var(--border);">
+      <div class="mono" style="color:var(--cyan); font-size:12px; min-width:100px;">${it.date.toLocaleDateString('fr-FR')}</div>
+      <div><strong style="display:block; font-size:13.5px;">${it.label}</strong><span style="font-size:12.5px; color:var(--text-dim);">${it.desc}</span></div>
+    </div>`).join('')}</div>`;
+}
+function baremeTax(revenu, parts){ const qf=revenu/parts; let tax=0; for(const b of BAREME){ if(qf>b.min) tax += (Math.min(qf,b.max)-b.min)*b.rate; } return tax*parts; }
+function decote(impotBrut, parts){ const threshold = parts>=2?3277:1982; const base = parts>=2?1483:897; if(impotBrut<threshold) return Math.max(0, Math.min(impotBrut, base-0.4525*impotBrut)); return 0; }
+function irOn(ca, autres, parts){ const w=autres+ca*(1-ABATTEMENT); const bw=baremeTax(w,parts); const iw=Math.max(0,bw-decote(bw,parts)); const b0=baremeTax(autres,parts); const i0=Math.max(0,b0-decote(b0,parts)); return iw-i0; }
+function vlActiveFromYear(){ return DB.fiscal.vlRequested==='si' ? (new Date().getFullYear()+1) : null; }
+function isEligibleVL(){ return DB.fiscal.rfr <= DB.fiscal.vlThreshold*DB.fiscal.parts; }
+function regimeForTranche(t){
+  if(t.regime==='classico') return 'classico';
+  if(t.regime==='vl') return 'vl';
+  const y = new Date(t.date).getFullYear();
+  const af = vlActiveFromYear();
+  if(af && y>=af && isEligibleVL()) return 'vl';
+  return 'classico';
+}
+function renderFiscalSimulador(el){
+  const f = DB.fiscal;
+  el.innerHTML = `
+    <div id="banners-sim"></div>
+    <div class="card">
+      <div class="toolbar"><h3 style="font-family:'Space Grotesk',sans-serif; font-size:14px;">Tramos del proyecto</h3><button class="btn btn-sm" onclick="addTranche()">+ añadir tramo</button></div>
+      <div id="tranches-sim"></div>
+      <div style="height:6px; background:var(--panel-2); border:1px solid var(--border); margin-top:12px;"><div id="threshold-fill" style="height:100%; background:var(--cyan);"></div></div>
+      <p class="field-note" id="threshold-note" style="margin-top:8px;"></p>
+    </div>
+    <div id="compare-sim"></div>
+    <div class="card">
+      <h3 style="font-family:'Space Grotesk',sans-serif; font-size:14px; margin-bottom:10px;">Cómo funciona tu declaración trimestral</h3>
+      <div id="quarterly-sim" style="font-size:13px; color:var(--text-dim); line-height:1.7;"></div>
+    </div>`;
+  renderSimBanners(); renderSimTranches(); renderSimCompare(); renderSimQuarterly();
+}
+function renderSimBanners(){
+  const f = DB.fiscal; let html='';
+  const today = new Date();
+  if(f.vlRequested==='no'){
+    const deadline = new Date(today.getFullYear(),8,30);
+    const days = Math.ceil((deadline-today)/86400000);
+    html += days>=0
+      ? `<div class="card" style="border-color:var(--orange); background:rgba(255,122,61,.06);"><b>Ventana abierta:</b> pide el VL antes del 30/09/${today.getFullYear()} (quedan ${days} días) para que se active el 01/01/${today.getFullYear()+1}.</div>`
+      : `<div class="card" style="border-color:var(--orange); background:rgba(255,122,61,.06);">Ya pasó el plazo de este año — la próxima ventana cierra el 30/09/${today.getFullYear()+1}.</div>`;
+  } else {
+    html += `<div class="card" style="border-color:var(--cyan); background:rgba(95,216,230,.06);">VL activo desde el 01/01/${vlActiveFromYear()}. Los cobros desde esa fecha aplican VL si sigues siendo elegible.</div>`;
+  }
+  document.getElementById('banners-sim').innerHTML = html;
+}
+function renderSimTranches(){
+  const f = DB.fiscal;
+  document.getElementById('tranches-sim').innerHTML = f.tranches.map(t=>{
+    const r = regimeForTranche(t);
+    return `<div style="display:grid; grid-template-columns:1.4fr 1fr 1fr 1fr auto; gap:10px; align-items:end; margin-bottom:10px; padding-bottom:10px; border-bottom:1px solid var(--border);">
+      <div><label>Etiqueta</label><input value="${t.label}" onchange="updateTranche(${t.id},'label',this.value)"></div>
+      <div><label>Monto (€)</label><input type="number" value="${t.amount}" onchange="updateTranche(${t.id},'amount',this.value)"></div>
+      <div><label>Fecha de cobro</label><input type="date" value="${t.date}" onchange="updateTranche(${t.id},'date',this.value)"></div>
+      <div><label>Régimen</label><select onchange="updateTranche(${t.id},'regime',this.value)">
+        <option value="auto" ${t.regime==='auto'?'selected':''}>Auto (${r==='vl'?'VL':'Clásico'})</option>
+        <option value="classico" ${t.regime==='classico'?'selected':''}>Forzar clásico</option>
+        <option value="vl" ${t.regime==='vl'?'selected':''}>Forzar VL</option></select></div>
+      <button class="btn btn-sm btn-danger" onclick="removeTranche(${t.id})">✕</button>
+    </div>`;
+  }).join('');
+  const total = f.tranches.reduce((s,t)=>s+t.amount,0);
+  const pct = Math.min(100,(total/PLAFOND_CA)*100);
+  document.getElementById('threshold-fill').style.width = pct+'%';
+  document.getElementById('threshold-note').textContent = `CA total: ${fmt(total)} — ${pct.toFixed(1)}% del plafond micro-BNC (~${fmt(PLAFOND_CA)}/año, verificar cada año).`;
+}
+function addTranche(){ DB.fiscal.tranches.push({id:nextIds.tranches++, label:'Nuevo tramo', amount:0, date:new Date().toISOString().slice(0,10), regime:'auto'}); saveDB(); renderFiscalSimulador(document.getElementById('impuestos-body')); }
+function removeTranche(id){ DB.fiscal.tranches = DB.fiscal.tranches.filter(t=>t.id!==id); saveDB(); renderFiscalSimulador(document.getElementById('impuestos-body')); }
+function updateTranche(id, field, value){ const t = DB.fiscal.tranches.find(t=>t.id===id); if(!t) return; t[field] = field==='amount' ? (parseFloat(value)||0) : value; saveDB(); renderSimTranches(); renderSimCompare(); }
+function renderSimCompare(){
+  const f = DB.fiscal;
+  const classico = f.tranches.filter(t=>regimeForTranche(t)==='classico');
+  const vl = f.tranches.filter(t=>regimeForTranche(t)==='vl');
+  const caClassico = classico.reduce((s,t)=>s+t.amount,0), caVl = vl.reduce((s,t)=>s+t.amount,0), caTotal = caClassico+caVl;
+  const cotis = caTotal*f.cotisationRate;
+  const irClassico = irOn(caClassico, f.autresRevenus, f.parts);
+  const vlImp = caVl*VL_RATE;
+  const totalReal = cotis+irClassico+vlImp;
+  const irTodoClassico = irOn(caTotal, f.autresRevenus, f.parts);
+  const totalTodoClassico = caTotal*f.cotisationRate + irTodoClassico;
+  const totalTodoVl = caTotal*f.cotisationRate + caTotal*VL_RATE;
+  const winner = totalTodoVl < totalTodoClassico ? 'vl' : 'classico';
+  const saving = Math.abs(totalTodoClassico-totalTodoVl);
+  document.getElementById('compare-sim').innerHTML = `
+    <div class="grid" style="grid-template-columns:1fr 1fr; margin-bottom:16px;">
+      <div class="card" style="${winner==='classico'?'border-color:var(--cyan);':''}">
+        <div class="mono" style="font-size:11px; color:var(--text-faint); text-transform:uppercase;">Si todo fuera clásico</div>
+        <div class="display" style="font-size:26px; font-weight:600; margin:6px 0;">${fmt(totalTodoClassico)}</div>
+        <div style="font-size:12.5px; color:var(--text-dim); border-top:1px solid var(--border); padding-top:8px; display:flex; justify-content:space-between;"><span>Cotizaciones</span><b class="mono">${fmt(caTotal*f.cotisationRate)}</b></div>
+        <div style="font-size:12.5px; color:var(--text-dim); display:flex; justify-content:space-between; padding-top:6px;"><span>IR adicional</span><b class="mono">${fmt(irTodoClassico)}</b></div>
+      </div>
+      <div class="card" style="${winner==='vl'?'border-color:var(--cyan);':''}">
+        <div class="mono" style="font-size:11px; color:var(--text-faint); text-transform:uppercase;">Si todo fuera VL ${winner==='vl'?`· ahorra ${fmt(saving)}`:''}</div>
+        <div class="display" style="font-size:26px; font-weight:600; margin:6px 0;">${fmt(totalTodoVl)}</div>
+        <div style="font-size:12.5px; color:var(--text-dim); border-top:1px solid var(--border); padding-top:8px; display:flex; justify-content:space-between;"><span>Cotizaciones</span><b class="mono">${fmt(caTotal*f.cotisationRate)}</b></div>
+        <div style="font-size:12.5px; color:var(--text-dim); display:flex; justify-content:space-between; padding-top:6px;"><span>VL fijo 2,2%</span><b class="mono">${fmt(caTotal*VL_RATE)}</b></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="mono" style="font-size:11px; color:var(--text-faint); text-transform:uppercase; margin-bottom:10px;">Total real con tus tramos y fechas</div>
+      <div style="display:flex; justify-content:space-between; font-size:13px; padding:6px 0; border-top:1px solid var(--border);"><span>Tramos clásico — ${fmt(caClassico)}</span><b class="mono">${fmt(caClassico*f.cotisationRate+irClassico)}</b></div>
+      <div style="display:flex; justify-content:space-between; font-size:13px; padding:6px 0; border-top:1px solid var(--border);"><span>Tramos VL — ${fmt(caVl)}</span><b class="mono">${fmt(caVl*f.cotisationRate+vlImp)}</b></div>
+      <div style="display:flex; justify-content:space-between; font-size:15px; padding:10px 0; border-top:2px solid var(--border);"><b>Total estimado</b><b class="mono">${fmt(totalReal)}</b></div>
+    </div>`;
+}
+function renderSimQuarterly(){
+  const vl = DB.fiscal.vlRequested==='si';
+  document.getElementById('quarterly-sim').innerHTML = `
+    <p>Cada trimestre declaras en autoentrepreneur.urssaf.fr el CA que <b style="color:var(--text);">cobraste</b>, no el que facturaste.</p>
+    <p style="margin-top:8px;">Con VL activo: cotizaciones + VL se pagan juntos y eso liquida el impuesto — nada más que pagar el año siguiente por ese ingreso.</p>
+    <p style="margin-top:8px;">Sin VL: solo pagas cotizaciones ese trimestre; el impuesto sobre la renta se liquida al año siguiente en tu déclaration, sumado a tu salario.</p>`;
+}
+
+/* expose functions used by inline handlers */
+window.setLang=setLang; window.tryLogin=tryLogin; window.logout=logout; window.addProyecto=addProyecto; window.setProyectoEtapa=setProyectoEtapa; window.toggleEditProyecto=toggleEditProyecto; window.saveEditProyecto=saveEditProyecto; window.setEditProyectoLang=setEditProyectoLang;
+window.toggleProyectoPublico=toggleProyectoPublico; window.deleteItem=deleteItem; window.addCliente=addCliente;
+window.addBiblioteca=addBiblioteca; window.addTiempo=addTiempo; window.addGasto=addGasto; window.addDocumento=addDocumento;
+window.setImpuestosTab=setImpuestosTab; window.updateFiscal=updateFiscal; window.addTranche=addTranche; window.removeTranche=removeTranche; window.updateTranche=updateTranche;
+</script>
+</body>
+</html>
