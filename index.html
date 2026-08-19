@@ -179,6 +179,7 @@ const CONFIG = {
 // para que un guardado accidental antes de cargar nunca sobreescriba el Sheet real.
 let DB = {
   proyectos: [], clientes: [], biblioteca: [], tiempo: [], gastos: [], documentos: [],
+  sesionesTrabajo: [], comptesRendus: [], tareas: [],
   fiscal: { avisYear:2025, rfr:0, parts:1, autresRevenus:0, dateAvis:'', cotisationRate:0.256, acre:'no', vlRequested:'no', vlThreshold:29315, tranches:[] }
 };
 let session = { authed:false, token:null, expiresAt:null, loaded:false };
@@ -550,6 +551,7 @@ const MODULES = [
 ];
 
 function renderAdmin(subpath){
+  clearSessionTimer();
   const parts = subpath.split('/').filter(Boolean);
   const modKey = parts[0] || 'dashboard';
   document.getElementById('app').innerHTML = `
@@ -608,11 +610,22 @@ function renderDashboard(){
 }
 
 /* ============================= PROYECTOS ============================= */
+// Estado de edición por módulo — regla general: toda entrada tiene botón "Editar".
+let editingId = {clientes:null, biblioteca:null, tiempo:null, gastos:null, documentos:null, sesionesTrabajo:null, comptesRendus:null, tareas:null};
+function toggleEdit(mod, id){
+  editingId[mod] = editingId[mod]===id ? null : id;
+  const renderers = {clientes:renderClientes, biblioteca:renderBiblioteca, tiempo:renderTiempo, gastos:renderFinanzas, documentos:renderDocumentos};
+  (renderers[mod]||route)();
+}
 let editingProyectoId = null;
-function renderProyectos(){
+let sessionTimerInterval = null;
+function clearSessionTimer(){ if(sessionTimerInterval){ clearInterval(sessionTimerInterval); sessionTimerInterval=null; } }
+
+function renderProyectos(subparts){
+  if(subparts && subparts[0]==='detalle'){ return renderProyectoDetalle(parseInt(subparts[1])); }
   root().innerHTML = `
     <h2 class="mod-title">Proyectos</h2>
-    <p class="mod-desc">Pipeline comercial completo — de la prospección a la facturación.</p>
+    <p class="mod-desc">Pipeline comercial completo. Click en el nombre para abrir la gestión del proyecto (sesiones de trabajo, CR, tareas).</p>
     <div class="card">
       <h3 style="font-family:'Space Grotesk',sans-serif; font-size:14px; margin-bottom:12px;">Nuevo proyecto</h3>
       <div class="grid">
@@ -632,7 +645,7 @@ function renderProyectos(){
       <thead><tr><th>Nombre</th><th>Cliente</th><th>Etapa</th><th>Honorarios</th><th>Horas est/real</th><th>Público</th><th></th></tr></thead>
       <tbody>${DB.proyectos.map(p=>`
         <tr>
-          <td>${p.nombre}</td>
+          <td><a href="#admin/proyectos/detalle/${p.id}" style="color:var(--cyan);">${p.nombre}</a></td>
           <td>${p.cliente}</td>
           <td><select onchange="setProyectoEtapa(${p.id}, this.value)">${PIPELINE_STAGES.map(s=>`<option ${s===p.etapa?'selected':''}>${s}</option>`).join('')}</select></td>
           <td>${fmt(p.honorarios)}</td>
@@ -720,6 +733,225 @@ function saveEditProyecto(id){
   editingProyectoId = null;
   saveDB(); renderProyectos();
 }
+
+/* ============================= GESTIÓN DE PROYECTO (detalle) ============================= */
+// Sesiones de trabajo (cronómetro), CR de reuniones y tareas, todo por proyecto.
+// Es el equivalente al módulo Bureau d'Études > Proyectos de HP Manager.
+
+function fmtDuration(ms){
+  const s = Math.floor(ms/1000);
+  const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
+  return (h>0? h+'h ':'') + String(m).padStart(2,'0')+'m '+String(sec).padStart(2,'0')+'s';
+}
+function fmtDateTime(iso){ if(!iso) return '—'; const d=new Date(iso); return d.toLocaleDateString('fr-FR')+' '+d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}); }
+
+function activeSessionGlobal(){ return DB.sesionesTrabajo.find(s=>s.fin===null||s.fin===undefined); }
+
+function renderProyectoDetalle(id){
+  const p = DB.proyectos.find(x=>x.id===id);
+  if(!p){ root().innerHTML = `<div class="empty">Proyecto no encontrado.</div>`; return; }
+  const sesiones = DB.sesionesTrabajo.filter(s=>s.proyectoId===id).sort((a,b)=>new Date(b.inicio)-new Date(a.inicio));
+  const crs = DB.comptesRendus.filter(c=>c.proyectoId===id).sort((a,b)=>new Date(b.fecha)-new Date(a.fecha));
+  const tareas = DB.tareas.filter(t=>t.proyectoId===id);
+  const activa = activeSessionGlobal();
+  const activaEsteProyecto = activa && activa.proyectoId===id;
+  const totalHorasSesiones = sesiones.filter(s=>s.fin).reduce((s,x)=>s+(new Date(x.fin)-new Date(x.inicio)),0)/3600000;
+
+  root().innerHTML = `
+    <a href="#admin/proyectos" class="mono" style="font-size:11.5px; color:var(--text-faint);">← volver a proyectos</a>
+    <h2 class="mod-title" style="margin-top:10px;">${p.nombre}</h2>
+    <p class="mod-desc">${p.cliente} · ${p.tipo||''} · <span class="pill tag-dim">${p.etapa}</span> · ${fmt(p.honorarios)}</p>
+
+    <div class="card" id="timer-card"></div>
+
+    <div class="card">
+      <h3 style="font-family:'Space Grotesk',sans-serif; font-size:14px; margin-bottom:4px;">Historial de sesiones</h3>
+      <p class="field-note" style="margin-bottom:12px;">Horas acumuladas en este proyecto vía sesiones: <b style="color:var(--text)">${totalHorasSesiones.toFixed(2)} h</b></p>
+      <table>
+        <thead><tr><th>Inicio</th><th>Fin</th><th>Duración</th><th>Nota</th><th></th></tr></thead>
+        <tbody>${sesiones.map(s=>`
+          <tr><td>${fmtDateTime(s.inicio)}</td><td>${s.fin?fmtDateTime(s.fin):'<span class="pill tag-cyan">en curso</span>'}</td>
+          <td>${s.fin?fmtDuration(new Date(s.fin)-new Date(s.inicio)):'—'}</td><td style="max-width:220px;">${s.nota||'—'}</td>
+          <td style="white-space:nowrap;">
+            <button class="btn btn-sm" onclick="toggleEdit('sesionesTrabajo',${s.id})">${editingId.sesionesTrabajo===s.id?'Cerrar':'Editar'}</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteItem('sesionesTrabajo',${s.id})">✕</button>
+          </td></tr>
+          ${editingId.sesionesTrabajo===s.id ? renderEditSesionForm(s) : ''}`).join('') || `<tr><td colspan="5" class="empty">Sin sesiones registradas.</td></tr>`}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3 style="font-family:'Space Grotesk',sans-serif; font-size:14px; margin-bottom:12px;">Comptes-rendus de reunión</h3>
+      <div class="grid">
+        <div><label>Fecha</label><input type="date" id="cr-fecha"></div>
+        <div style="grid-column:span 2;"><label>Asistentes</label><input id="cr-asistentes" placeholder="Jeff, cliente, ..."></div>
+      </div>
+      <div style="margin-top:10px;"><label>Contenido</label><textarea id="cr-contenido" rows="2"></textarea></div>
+      <div style="margin-top:10px;"><label>Acciones a seguir</label><textarea id="cr-acciones" rows="2"></textarea></div>
+      <button class="btn btn-primary" style="margin-top:14px;" onclick="addCR(${id})">+ añadir CR</button>
+      <table style="margin-top:16px;">
+        <thead><tr><th>Fecha</th><th>Asistentes</th><th>Contenido</th><th>Acciones</th><th></th></tr></thead>
+        <tbody>${crs.map(c=>`
+          <tr><td>${c.fecha}</td><td>${c.asistentes}</td><td style="max-width:220px;">${c.contenido}</td><td style="max-width:200px;">${c.acciones||'—'}</td>
+          <td style="white-space:nowrap;">
+            <button class="btn btn-sm" onclick="toggleEdit('comptesRendus',${c.id})">${editingId.comptesRendus===c.id?'Cerrar':'Editar'}</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteItem('comptesRendus',${c.id})">✕</button>
+          </td></tr>
+          ${editingId.comptesRendus===c.id ? renderEditCRForm(c) : ''}`).join('') || `<tr><td colspan="5" class="empty">Sin CR registrados.</td></tr>`}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3 style="font-family:'Space Grotesk',sans-serif; font-size:14px; margin-bottom:12px;">Tareas</h3>
+      <div class="grid">
+        <div><label>Título</label><input id="tk-titulo"></div>
+        <div><label>Responsable</label><input id="tk-responsable"></div>
+        <div><label>Estado</label><select id="tk-estado"><option>Pendiente</option><option>En curso</option><option>Hecho</option></select></div>
+        <div><label>Fecha límite</label><input type="date" id="tk-fecha"></div>
+      </div>
+      <button class="btn btn-primary" style="margin-top:14px;" onclick="addTarea(${id})">+ añadir tarea</button>
+      <table style="margin-top:16px;">
+        <thead><tr><th>Título</th><th>Responsable</th><th>Estado</th><th>Fecha</th><th></th></tr></thead>
+        <tbody>${tareas.map(t=>`
+          <tr><td>${t.titulo}</td><td>${t.responsable||'—'}</td>
+          <td><select onchange="setTareaEstado(${t.id}, this.value)">${['Pendiente','En curso','Hecho'].map(e=>`<option ${e===t.estado?'selected':''}>${e}</option>`).join('')}</select></td>
+          <td>${t.fecha||'—'}</td>
+          <td style="white-space:nowrap;">
+            <button class="btn btn-sm" onclick="toggleEdit('tareas',${t.id})">${editingId.tareas===t.id?'Cerrar':'Editar'}</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteItem('tareas',${t.id})">✕</button>
+          </td></tr>
+          ${editingId.tareas===t.id ? renderEditTareaForm(t) : ''}`).join('') || `<tr><td colspan="5" class="empty">Sin tareas registradas.</td></tr>`}
+        </tbody>
+      </table>
+    </div>`;
+
+  renderTimerCard(p, activa, activaEsteProyecto);
+  clearSessionTimer();
+  if(activaEsteProyecto){
+    sessionTimerInterval = setInterval(()=>updateTimerDisplay(activa), 1000);
+  }
+}
+
+function renderTimerCard(p, activa, activaEsteProyecto){
+  const card = document.getElementById('timer-card');
+  if(!card) return;
+  if(activaEsteProyecto){
+    card.innerHTML = `
+      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px;">
+        <div>
+          <div class="mono" style="font-size:11px; color:var(--cyan); text-transform:uppercase; letter-spacing:.05em;">Sesión en curso</div>
+          <div id="timer-display" class="display" style="font-size:32px; font-weight:600; margin-top:4px;">00h 00m 00s</div>
+          <div class="field-note" style="margin-top:4px;">Iniciada a las ${fmtDateTime(activa.inicio)}</div>
+        </div>
+        <button class="btn btn-danger" style="border-color:var(--danger); color:var(--danger); font-size:14px; padding:14px 22px;" onclick="stopSession()">⏸ Detener sesión</button>
+      </div>`;
+    updateTimerDisplay(activa);
+  } else if(activa){
+    card.innerHTML = `<div class="field-note">Tienes una sesión activa en otro proyecto (<b style="color:var(--text)">${(DB.proyectos.find(x=>x.id===activa.proyectoId)||{}).nombre||'?'}</b>) desde las ${fmtDateTime(activa.inicio)}. Detenla antes de abrir una nueva. <button class="btn btn-sm" style="margin-left:8px;" onclick="stopSession()">Detener esa sesión</button></div>`;
+  } else {
+    card.innerHTML = `<button class="btn btn-primary" style="font-size:14px; padding:14px 22px;" onclick="startSession(${p.id})">▶ Iniciar sesión de trabajo</button>`;
+  }
+}
+function updateTimerDisplay(activa){
+  const el = document.getElementById('timer-display');
+  if(!el) return;
+  el.textContent = fmtDuration(new Date() - new Date(activa.inicio));
+}
+function startSession(proyectoId){
+  if(activeSessionGlobal()) return alert('Ya hay una sesión activa — detenla primero.');
+  DB.sesionesTrabajo.push({id:uid(DB.sesionesTrabajo), proyectoId, inicio:new Date().toISOString(), fin:null, nota:''});
+  saveDB(); renderProyectoDetalle(proyectoId);
+}
+function stopSession(){
+  const s = activeSessionGlobal();
+  if(!s) return;
+  s.fin = new Date().toISOString();
+  const horas = (new Date(s.fin)-new Date(s.inicio))/3600000;
+  DB.tiempo.push({id:uid(DB.tiempo), proyectoId:s.proyectoId, fecha:s.fin.slice(0,10), horas: Math.round(horas*100)/100, tarifa:65, facturable:true});
+  const p = DB.proyectos.find(x=>x.id===s.proyectoId);
+  if(p) p.horasReal = Math.round(((p.horasReal||0)+horas)*100)/100;
+  saveDB(); renderProyectoDetalle(s.proyectoId);
+}
+function renderEditSesionForm(s){
+  return `<tr><td colspan="5"><div class="card" style="margin:8px 0 4px; background:var(--panel-2);">
+    <div class="grid">
+      <div><label>Inicio</label><input type="datetime-local" id="e-inicio-${s.id}" value="${s.inicio?s.inicio.slice(0,16):''}"></div>
+      <div><label>Fin</label><input type="datetime-local" id="e-fin-${s.id}" value="${s.fin?s.fin.slice(0,16):''}"></div>
+    </div>
+    <div style="margin-top:10px;"><label>Nota</label><textarea id="e-nota-${s.id}" rows="2">${s.nota||''}</textarea></div>
+    <div style="margin-top:14px; display:flex; gap:10px;">
+      <button class="btn btn-primary" onclick="saveEditSesion(${s.id})">Guardar cambios</button>
+      <button class="btn" onclick="toggleEdit('sesionesTrabajo',${s.id})">Cancelar</button>
+    </div>
+  </div></td></tr>`;
+}
+function saveEditSesion(id){
+  const s = DB.sesionesTrabajo.find(x=>x.id===id); if(!s) return;
+  const inicio = document.getElementById('e-inicio-'+id).value;
+  const fin = document.getElementById('e-fin-'+id).value;
+  if(inicio) s.inicio = new Date(inicio).toISOString();
+  if(fin) s.fin = new Date(fin).toISOString();
+  s.nota = document.getElementById('e-nota-'+id).value;
+  editingId.sesionesTrabajo = null; saveDB(); renderProyectoDetalle(s.proyectoId);
+}
+
+function addCR(proyectoId){
+  const contenido = document.getElementById('cr-contenido').value.trim();
+  if(!contenido) return alert('Falta el contenido del CR.');
+  DB.comptesRendus.push({id:uid(DB.comptesRendus), proyectoId, fecha:document.getElementById('cr-fecha').value, asistentes:document.getElementById('cr-asistentes').value, contenido, acciones:document.getElementById('cr-acciones').value});
+  saveDB(); renderProyectoDetalle(proyectoId);
+}
+function renderEditCRForm(c){
+  return `<tr><td colspan="5"><div class="card" style="margin:8px 0 4px; background:var(--panel-2);">
+    <div class="grid">
+      <div><label>Fecha</label><input type="date" id="e-fecha-${c.id}" value="${c.fecha||''}"></div>
+      <div style="grid-column:span 2;"><label>Asistentes</label><input id="e-asistentes-${c.id}" value="${c.asistentes||''}"></div>
+    </div>
+    <div style="margin-top:10px;"><label>Contenido</label><textarea id="e-contenido-${c.id}" rows="2">${c.contenido||''}</textarea></div>
+    <div style="margin-top:10px;"><label>Acciones a seguir</label><textarea id="e-acciones-${c.id}" rows="2">${c.acciones||''}</textarea></div>
+    <div style="margin-top:14px; display:flex; gap:10px;">
+      <button class="btn btn-primary" onclick="saveEditCR(${c.id})">Guardar cambios</button>
+      <button class="btn" onclick="toggleEdit('comptesRendus',${c.id})">Cancelar</button>
+    </div>
+  </div></td></tr>`;
+}
+function saveEditCR(id){
+  const c = DB.comptesRendus.find(x=>x.id===id); if(!c) return;
+  const g = f => document.getElementById(f+'-'+id).value;
+  c.fecha=g('e-fecha'); c.asistentes=g('e-asistentes'); c.contenido=g('e-contenido'); c.acciones=g('e-acciones');
+  editingId.comptesRendus = null; saveDB(); renderProyectoDetalle(c.proyectoId);
+}
+
+function addTarea(proyectoId){
+  const titulo = document.getElementById('tk-titulo').value.trim();
+  if(!titulo) return alert('Falta el título de la tarea.');
+  DB.tareas.push({id:uid(DB.tareas), proyectoId, titulo, responsable:document.getElementById('tk-responsable').value, estado:document.getElementById('tk-estado').value, fecha:document.getElementById('tk-fecha').value});
+  saveDB(); renderProyectoDetalle(proyectoId);
+}
+function setTareaEstado(id, estado){ const t=DB.tareas.find(x=>x.id===id); if(t){ t.estado=estado; saveDB(); } }
+function renderEditTareaForm(t){
+  return `<tr><td colspan="5"><div class="card" style="margin:8px 0 4px; background:var(--panel-2);">
+    <div class="grid">
+      <div><label>Título</label><input id="e-titulo-${t.id}" value="${t.titulo}"></div>
+      <div><label>Responsable</label><input id="e-responsable-${t.id}" value="${t.responsable||''}"></div>
+      <div><label>Estado</label><select id="e-estado-${t.id}">${['Pendiente','En curso','Hecho'].map(e=>`<option ${e===t.estado?'selected':''}>${e}</option>`).join('')}</select></div>
+      <div><label>Fecha límite</label><input type="date" id="e-fecha-${t.id}" value="${t.fecha||''}"></div>
+    </div>
+    <div style="margin-top:14px; display:flex; gap:10px;">
+      <button class="btn btn-primary" onclick="saveEditTarea(${t.id})">Guardar cambios</button>
+      <button class="btn" onclick="toggleEdit('tareas',${t.id})">Cancelar</button>
+    </div>
+  </div></td></tr>`;
+}
+function saveEditTarea(id){
+  const t = DB.tareas.find(x=>x.id===id); if(!t) return;
+  const g = f => document.getElementById(f+'-'+id).value;
+  t.titulo=g('e-titulo').trim()||t.titulo; t.responsable=g('e-responsable'); t.estado=g('e-estado'); t.fecha=g('e-fecha');
+  editingId.tareas = null; saveDB(); renderProyectoDetalle(t.proyectoId);
+}
+
 function addProyecto(){
   const nombre = document.getElementById('p-nombre').value.trim();
   if(!nombre) return alert('Ponle un nombre al proyecto.');
@@ -743,28 +975,57 @@ function renderClientes(){
     <p class="mod-desc">CRM ligero — empresas BTP con las que trabajas.</p>
     <div class="card">
       <div class="grid">
-        <div><label>Nombre</label><input id="c-nombre"></div>
-        <div><label>Contacto</label><input id="c-contacto"></div>
+        <div><label>Razón social (empresa)</label><input id="c-nombre"></div>
+        <div><label>Nombre del contacto directo</label><input id="c-contacto"></div>
         <div><label>Email</label><input id="c-email"></div>
+        <div><label>Teléfono</label><input id="c-telefono"></div>
         <div><label>Recurrencia</label><select id="c-recurrencia"><option value="puntual">Puntual</option><option value="recurrente">Recurrente</option></select></div>
       </div>
       <button class="btn btn-primary" style="margin-top:14px;" onclick="addCliente()">+ añadir cliente</button>
     </div>
     <table>
-      <thead><tr><th>Nombre</th><th>Contacto</th><th>Email</th><th>Recurrencia</th><th>Proyectos</th><th></th></tr></thead>
+      <thead><tr><th>Razón social</th><th>Contacto</th><th>Email</th><th>Recurrencia</th><th>Proyectos</th><th></th></tr></thead>
       <tbody>${DB.clientes.map(c=>{
         const n = DB.proyectos.filter(p=>p.cliente===c.nombre).length;
         return `<tr><td>${c.nombre}</td><td>${c.contacto||'—'}</td><td>${c.email||'—'}</td>
           <td><span class="pill ${c.recurrencia==='recurrente'?'tag-cyan':'tag-dim'}">${c.recurrencia}</span></td>
-          <td>${n}</td><td><button class="btn btn-sm btn-danger" onclick="deleteItem('clientes',${c.id})">✕</button></td></tr>`;
+          <td>${n}</td><td style="white-space:nowrap;">
+            <button class="btn btn-sm" onclick="toggleEdit('clientes',${c.id})">${editingId.clientes===c.id?'Cerrar':'Editar'}</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteItem('clientes',${c.id})">✕</button>
+          </td></tr>
+          ${editingId.clientes===c.id ? renderEditClienteForm(c) : ''}`;
       }).join('') || `<tr><td colspan="6" class="empty">Sin clientes aún.</td></tr>`}
       </tbody>
     </table>`;
 }
+function renderEditClienteForm(c){
+  return `<tr><td colspan="6"><div class="card" style="margin:8px 0 4px; background:var(--panel-2);">
+    <div class="grid">
+      <div><label>Razón social (empresa)</label><input id="e-nombre-${c.id}" value="${c.nombre}"></div>
+      <div><label>Nombre del contacto directo</label><input id="e-contacto-${c.id}" value="${c.contacto||''}"></div>
+      <div><label>Email</label><input id="e-email-${c.id}" value="${c.email||''}"></div>
+      <div><label>Teléfono</label><input id="e-telefono-${c.id}" value="${c.telefono||''}"></div>
+      <div><label>Recurrencia</label><select id="e-recurrencia-${c.id}">
+        <option value="puntual" ${c.recurrencia==='puntual'?'selected':''}>Puntual</option>
+        <option value="recurrente" ${c.recurrencia==='recurrente'?'selected':''}>Recurrente</option></select></div>
+    </div>
+    <div style="margin-top:14px; display:flex; gap:10px;">
+      <button class="btn btn-primary" onclick="saveEditCliente(${c.id})">Guardar cambios</button>
+      <button class="btn" onclick="toggleEdit('clientes',${c.id})">Cancelar</button>
+    </div>
+  </div></td></tr>`;
+}
+function saveEditCliente(id){
+  const c = DB.clientes.find(x=>x.id===id); if(!c) return;
+  const g = f => document.getElementById(f+'-'+id).value;
+  c.nombre = g('e-nombre').trim() || c.nombre;
+  c.contacto = g('e-contacto'); c.email = g('e-email'); c.telefono = g('e-telefono'); c.recurrencia = g('e-recurrencia');
+  editingId.clientes = null; saveDB(); renderClientes();
+}
 function addCliente(){
   const nombre = document.getElementById('c-nombre').value.trim();
-  if(!nombre) return alert('Falta el nombre del cliente.');
-  DB.clientes.push({id:uid(DB.clientes), nombre, contacto:document.getElementById('c-contacto').value, email:document.getElementById('c-email').value, telefono:'', recurrencia:document.getElementById('c-recurrencia').value});
+  if(!nombre) return alert('Falta la razón social del cliente.');
+  DB.clientes.push({id:uid(DB.clientes), nombre, contacto:document.getElementById('c-contacto').value, email:document.getElementById('c-email').value, telefono:document.getElementById('c-telefono').value, recurrencia:document.getElementById('c-recurrencia').value});
   saveDB(); renderClientes();
 }
 
@@ -788,9 +1049,35 @@ function renderBiblioteca(){
       <tbody>${DB.biblioteca.map(b=>`
         <tr><td>${b.nombre}</td><td><span class="pill ${b.madurez==='Vendible'?'tag-cyan':b.madurez==='Production-ready'?'tag-orange':'tag-dim'}">${b.madurez}</span></td>
         <td>${b.plugins}</td><td style="max-width:280px;">${b.descripcion}</td>
-        <td><button class="btn btn-sm btn-danger" onclick="deleteItem('biblioteca',${b.id})">✕</button></td></tr>`).join('') || `<tr><td colspan="5" class="empty">Aún no has catalogado definiciones.</td></tr>`}
+        <td style="white-space:nowrap;">
+          <button class="btn btn-sm" onclick="toggleEdit('biblioteca',${b.id})">${editingId.biblioteca===b.id?'Cerrar':'Editar'}</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteItem('biblioteca',${b.id})">✕</button>
+        </td></tr>
+        ${editingId.biblioteca===b.id ? renderEditBibliotecaForm(b) : ''}`).join('') || `<tr><td colspan="5" class="empty">Aún no has catalogado definiciones.</td></tr>`}
       </tbody>
     </table>`;
+}
+function renderEditBibliotecaForm(b){
+  return `<tr><td colspan="5"><div class="card" style="margin:8px 0 4px; background:var(--panel-2);">
+    <div class="grid">
+      <div><label>Nombre</label><input id="e-nombre-${b.id}" value="${b.nombre}"></div>
+      <div><label>Madurez</label><select id="e-madurez-${b.id}">${MADUREZ.map(m=>`<option ${m===b.madurez?'selected':''}>${m}</option>`).join('')}</select></div>
+      <div><label>Plugins usados</label><input id="e-plugins-${b.id}" value="${b.plugins||''}"></div>
+      <div><label>Proyectos donde se usó</label><input id="e-proyectos-${b.id}" value="${b.proyectos||''}"></div>
+    </div>
+    <div style="margin-top:12px;"><label>Descripción</label><textarea id="e-descripcion-${b.id}" rows="2">${b.descripcion||''}</textarea></div>
+    <div style="margin-top:14px; display:flex; gap:10px;">
+      <button class="btn btn-primary" onclick="saveEditBiblioteca(${b.id})">Guardar cambios</button>
+      <button class="btn" onclick="toggleEdit('biblioteca',${b.id})">Cancelar</button>
+    </div>
+  </div></td></tr>`;
+}
+function saveEditBiblioteca(id){
+  const b = DB.biblioteca.find(x=>x.id===id); if(!b) return;
+  const g = f => document.getElementById(f+'-'+id).value;
+  b.nombre = g('e-nombre').trim() || b.nombre;
+  b.madurez = g('e-madurez'); b.plugins = g('e-plugins'); b.proyectos = g('e-proyectos'); b.descripcion = g('e-descripcion');
+  editingId.biblioteca = null; saveDB(); renderBiblioteca();
 }
 function addBiblioteca(){
   const nombre = document.getElementById('b-nombre').value.trim();
@@ -825,10 +1112,39 @@ function renderTiempo(){
         const p = DB.proyectos.find(x=>x.id===t.proyectoId);
         return `<tr><td>${p?p.nombre:'—'}</td><td>${t.fecha}</td><td>${t.horas}</td><td>${t.tarifa}€</td>
           <td><span class="pill ${t.facturable?'tag-cyan':'tag-dim'}">${t.facturable?'sí':'no'}</span></td>
-          <td>${fmt(t.horas*t.tarifa)}</td><td><button class="btn btn-sm btn-danger" onclick="deleteItem('tiempo',${t.id})">✕</button></td></tr>`;
+          <td>${fmt(t.horas*t.tarifa)}</td><td style="white-space:nowrap;">
+            <button class="btn btn-sm" onclick="toggleEdit('tiempo',${t.id})">${editingId.tiempo===t.id?'Cerrar':'Editar'}</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteItem('tiempo',${t.id})">✕</button>
+          </td></tr>
+          ${editingId.tiempo===t.id ? renderEditTiempoForm(t) : ''}`;
       }).join('') || `<tr><td colspan="7" class="empty">Sin horas registradas.</td></tr>`}
       </tbody>
     </table>`;
+}
+function renderEditTiempoForm(t){
+  return `<tr><td colspan="7"><div class="card" style="margin:8px 0 4px; background:var(--panel-2);">
+    <div class="grid">
+      <div><label>Proyecto</label><select id="e-proyectoId-${t.id}">${DB.proyectos.map(p=>`<option value="${p.id}" ${p.id===t.proyectoId?'selected':''}>${p.nombre}</option>`).join('')}</select></div>
+      <div><label>Fecha</label><input type="date" id="e-fecha-${t.id}" value="${t.fecha||''}"></div>
+      <div><label>Horas</label><input type="number" id="e-horas-${t.id}" value="${t.horas}"></div>
+      <div><label>Tarifa (€/h)</label><input type="number" id="e-tarifa-${t.id}" value="${t.tarifa}"></div>
+      <div><label>Facturable</label><select id="e-facturable-${t.id}">
+        <option value="true" ${t.facturable?'selected':''}>Sí</option>
+        <option value="false" ${!t.facturable?'selected':''}>No</option></select></div>
+    </div>
+    <div style="margin-top:14px; display:flex; gap:10px;">
+      <button class="btn btn-primary" onclick="saveEditTiempo(${t.id})">Guardar cambios</button>
+      <button class="btn" onclick="toggleEdit('tiempo',${t.id})">Cancelar</button>
+    </div>
+  </div></td></tr>`;
+}
+function saveEditTiempo(id){
+  const t = DB.tiempo.find(x=>x.id===id); if(!t) return;
+  const g = f => document.getElementById(f+'-'+id).value;
+  t.proyectoId = parseInt(g('e-proyectoId'))||t.proyectoId;
+  t.fecha = g('e-fecha'); t.horas = parseFloat(g('e-horas'))||0; t.tarifa = parseFloat(g('e-tarifa'))||0;
+  t.facturable = g('e-facturable')==='true';
+  editingId.tiempo = null; saveDB(); renderTiempo();
 }
 function addTiempo(){
   const proyectoId = parseInt(document.getElementById('t-proyecto').value);
@@ -865,7 +1181,12 @@ function renderFinanzas(){
     </div>
     <table style="margin-bottom:24px;">
       <thead><tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><th>Monto</th><th></th></tr></thead>
-      <tbody>${DB.gastos.map(g=>`<tr><td>${g.fecha}</td><td>${g.concepto}</td><td>${g.categoria}</td><td>${fmt(g.monto)}</td><td><button class="btn btn-sm btn-danger" onclick="deleteItem('gastos',${g.id})">✕</button></td></tr>`).join('') || `<tr><td colspan="5" class="empty">Sin gastos registrados.</td></tr>`}</tbody>
+      <tbody>${DB.gastos.map(g=>`<tr><td>${g.fecha}</td><td>${g.concepto}</td><td>${g.categoria}</td><td>${fmt(g.monto)}</td>
+        <td style="white-space:nowrap;">
+          <button class="btn btn-sm" onclick="toggleEdit('gastos',${g.id})">${editingId.gastos===g.id?'Cerrar':'Editar'}</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteItem('gastos',${g.id})">✕</button>
+        </td></tr>
+        ${editingId.gastos===g.id ? renderEditGastoForm(g) : ''}`).join('') || `<tr><td colspan="5" class="empty">Sin gastos registrados.</td></tr>`}</tbody>
     </table>
     <div class="card">
       <h3 style="font-family:'Space Grotesk',sans-serif; font-size:14px; margin-bottom:12px;">Rentabilidad por proyecto</h3>
@@ -881,6 +1202,26 @@ function renderFinanzas(){
       </table>
       <p class="field-note" style="margin-top:10px;">Rentabilidad = honorarios − (horas reales × tarifa objetivo). Ajusta la tarifa objetivo según tu costo-hora real.</p>
     </div>`;
+}
+function renderEditGastoForm(g){
+  return `<tr><td colspan="5"><div class="card" style="margin:8px 0 4px; background:var(--panel-2);">
+    <div class="grid">
+      <div><label>Fecha</label><input type="date" id="e-fecha-${g.id}" value="${g.fecha||''}"></div>
+      <div><label>Concepto</label><input id="e-concepto-${g.id}" value="${g.concepto||''}"></div>
+      <div><label>Monto (€)</label><input type="number" id="e-monto-${g.id}" value="${g.monto}"></div>
+      <div><label>Categoría</label><input id="e-categoria-${g.id}" value="${g.categoria||''}"></div>
+    </div>
+    <div style="margin-top:14px; display:flex; gap:10px;">
+      <button class="btn btn-primary" onclick="saveEditGasto(${g.id})">Guardar cambios</button>
+      <button class="btn" onclick="toggleEdit('gastos',${g.id})">Cancelar</button>
+    </div>
+  </div></td></tr>`;
+}
+function saveEditGasto(id){
+  const g = DB.gastos.find(x=>x.id===id); if(!g) return;
+  const v = f => document.getElementById(f+'-'+id).value;
+  g.fecha = v('e-fecha'); g.concepto = v('e-concepto'); g.monto = parseFloat(v('e-monto'))||0; g.categoria = v('e-categoria');
+  editingId.gastos = null; saveDB(); renderFinanzas();
 }
 function addGasto(){
   const monto = parseFloat(document.getElementById('g-monto').value)||0;
@@ -907,9 +1248,35 @@ function renderDocumentos(){
       <thead><tr><th>Nombre</th><th>Proyecto</th><th>Tipo</th><th>Fecha</th><th></th></tr></thead>
       <tbody>${DB.documentos.map(d=>{
         const p = DB.proyectos.find(x=>x.id===d.proyectoId);
-        return `<tr><td>${d.nombre}</td><td>${p?p.nombre:'—'}</td><td>${d.tipo}</td><td>${d.fecha}</td><td><button class="btn btn-sm btn-danger" onclick="deleteItem('documentos',${d.id})">✕</button></td></tr>`;
+        return `<tr><td>${d.nombre}</td><td>${p?p.nombre:'—'}</td><td>${d.tipo}</td><td>${d.fecha}</td>
+          <td style="white-space:nowrap;">
+            <button class="btn btn-sm" onclick="toggleEdit('documentos',${d.id})">${editingId.documentos===d.id?'Cerrar':'Editar'}</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteItem('documentos',${d.id})">✕</button>
+          </td></tr>
+          ${editingId.documentos===d.id ? renderEditDocumentoForm(d) : ''}`;
       }).join('') || `<tr><td colspan="5" class="empty">Sin documentos registrados.</td></tr>`}</tbody>
     </table>`;
+}
+function renderEditDocumentoForm(d){
+  return `<tr><td colspan="5"><div class="card" style="margin:8px 0 4px; background:var(--panel-2);">
+    <div class="grid">
+      <div><label>Nombre</label><input id="e-nombre-${d.id}" value="${d.nombre}"></div>
+      <div><label>Proyecto</label><select id="e-proyectoId-${d.id}">${DB.proyectos.map(p=>`<option value="${p.id}" ${p.id===d.proyectoId?'selected':''}>${p.nombre}</option>`).join('')}</select></div>
+      <div><label>Tipo</label><input id="e-tipo-${d.id}" value="${d.tipo||''}"></div>
+      <div><label>Fecha</label><input type="date" id="e-fecha-${d.id}" value="${d.fecha||''}"></div>
+    </div>
+    <div style="margin-top:14px; display:flex; gap:10px;">
+      <button class="btn btn-primary" onclick="saveEditDocumento(${d.id})">Guardar cambios</button>
+      <button class="btn" onclick="toggleEdit('documentos',${d.id})">Cancelar</button>
+    </div>
+  </div></td></tr>`;
+}
+function saveEditDocumento(id){
+  const d = DB.documentos.find(x=>x.id===id); if(!d) return;
+  const g = f => document.getElementById(f+'-'+id).value;
+  d.nombre = g('e-nombre').trim() || d.nombre;
+  d.proyectoId = parseInt(g('e-proyectoId'))||d.proyectoId; d.tipo = g('e-tipo'); d.fecha = g('e-fecha');
+  editingId.documentos = null; saveDB(); renderDocumentos();
 }
 function addDocumento(){
   const nombre = document.getElementById('d-nombre').value.trim();
@@ -1100,9 +1467,14 @@ function renderSimQuarterly(){
 
 /* expose functions used by inline handlers */
 window.setLang=setLang; window.tryLogin=tryLogin; window.logout=logout; window.addProyecto=addProyecto; window.setProyectoEtapa=setProyectoEtapa; window.toggleEditProyecto=toggleEditProyecto; window.saveEditProyecto=saveEditProyecto; window.setEditProyectoLang=setEditProyectoLang;
-window.toggleProyectoPublico=toggleProyectoPublico; window.deleteItem=deleteItem; window.addCliente=addCliente;
+window.toggleProyectoPublico=toggleProyectoPublico; window.deleteItem=deleteItem; window.toggleEdit=toggleEdit; window.saveEditCliente=saveEditCliente; window.saveEditBiblioteca=saveEditBiblioteca;
+window.saveEditTiempo=saveEditTiempo; window.saveEditGasto=saveEditGasto; window.saveEditDocumento=saveEditDocumento;
+window.addCliente=addCliente;
 window.addBiblioteca=addBiblioteca; window.addTiempo=addTiempo; window.addGasto=addGasto; window.addDocumento=addDocumento;
 window.setImpuestosTab=setImpuestosTab; window.updateFiscal=updateFiscal; window.addTranche=addTranche; window.removeTranche=removeTranche; window.updateTranche=updateTranche;
+window.startSession=startSession; window.stopSession=stopSession; window.saveEditSesion=saveEditSesion;
+window.addCR=addCR; window.saveEditCR=saveEditCR;
+window.addTarea=addTarea; window.setTareaEstado=setTareaEstado; window.saveEditTarea=saveEditTarea;
 </script>
 </body>
 </html>
