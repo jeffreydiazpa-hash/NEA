@@ -179,7 +179,7 @@ const CONFIG = {
 // para que un guardado accidental antes de cargar nunca sobreescriba el Sheet real.
 let DB = {
   proyectos: [], clientes: [], biblioteca: [], tiempo: [], gastos: [], documentos: [],
-  sesionesTrabajo: [], comptesRendus: [], tareas: [],
+  sesionesTrabajo: [], comptesRendus: [], tareas: [], pagos: [],
   fiscal: { avisYear:2025, rfr:0, parts:1, autresRevenus:0, dateAvis:'', cotisationRate:0.256, acre:'no', vlRequested:'no', vlThreshold:29315, tranches:[] }
 };
 let session = { authed:false, token:null, expiresAt:null, loaded:false };
@@ -611,11 +611,14 @@ function renderDashboard(){
 
 /* ============================= PROYECTOS ============================= */
 // Estado de edición por módulo — regla general: toda entrada tiene botón "Editar".
-let editingId = {clientes:null, biblioteca:null, tiempo:null, gastos:null, documentos:null, sesionesTrabajo:null, comptesRendus:null, tareas:null};
+// Paneles "añadir nuevo" — regla general: cerrados por defecto, se despliegan con un botón.
+let addOpen = {proyectos:false, clientes:false, biblioteca:false, tiempo:false, gastos:false, documentos:false, cr:false, tareas:false, pagos:false, documentosProyecto:false};
+function toggleAddPanel(key){ addOpen[key] = !addOpen[key]; route(); }
+
+let editingId = {clientes:null, biblioteca:null, tiempo:null, gastos:null, documentos:null, sesionesTrabajo:null, comptesRendus:null, tareas:null, pagos:null};
 function toggleEdit(mod, id){
   editingId[mod] = editingId[mod]===id ? null : id;
-  const renderers = {clientes:renderClientes, biblioteca:renderBiblioteca, tiempo:renderTiempo, gastos:renderFinanzas, documentos:renderDocumentos};
-  (renderers[mod]||route)();
+  route();
 }
 let editingProyectoId = null;
 let sessionTimerInterval = null;
@@ -627,7 +630,11 @@ function renderProyectos(subparts){
     <h2 class="mod-title">Proyectos</h2>
     <p class="mod-desc">Pipeline comercial completo. Click en el nombre para abrir la gestión del proyecto (sesiones de trabajo, CR, tareas).</p>
     <div class="card">
-      <h3 style="font-family:'Space Grotesk',sans-serif; font-size:14px; margin-bottom:12px;">Nuevo proyecto</h3>
+      <div class="toolbar" style="margin-bottom:${addOpen.proyectos?'14px':'0'};">
+        <h3 style="font-family:'Space Grotesk',sans-serif; font-size:14px; margin:0;">Nuevo proyecto</h3>
+        <button class="btn btn-sm" onclick="toggleAddPanel('proyectos')">${addOpen.proyectos?'Cerrar':'+ Nuevo'}</button>
+      </div>
+      ${!addOpen.proyectos ? '' : `
       <div class="grid">
         <div><label>Nombre</label><input id="p-nombre"></div>
         <div><label>Cliente</label><input id="p-cliente" list="clientes-list">
@@ -639,7 +646,7 @@ function renderProyectos(subparts){
         <div><label>Horas estimadas</label><input type="number" id="p-horasEst"></div>
         <div><label>Fecha</label><input type="date" id="p-fecha"></div>
       </div>
-      <button class="btn btn-primary" style="margin-top:14px;" onclick="addProyecto()">+ añadir proyecto</button>
+      <button class="btn btn-primary" style="margin-top:14px;" onclick="addProyecto()">+ añadir proyecto</button>`}
     </div>
     <table>
       <thead><tr><th>Nombre</th><th>Cliente</th><th>Etapa</th><th>Honorarios</th><th>Horas est/real</th><th>Público</th><th></th></tr></thead>
@@ -747,26 +754,83 @@ function fmtDateTime(iso){ if(!iso) return '—'; const d=new Date(iso); return 
 
 function activeSessionGlobal(){ return DB.sesionesTrabajo.find(s=>s.fin===null||s.fin===undefined); }
 
+let currentProyectoDetalleId = null;
+let currentProyectoTab = 'resumen';
+const PROYECTO_TABS = [['resumen','Resumen'],['sesiones','Sesiones'],['cr','CR'],['tareas','Tareas'],['documentos','Documentos'],['pagos','Pagos']];
+function setProyectoTab(tab){ currentProyectoTab = tab; renderProyectoDetalle(currentProyectoDetalleId); }
+
 function renderProyectoDetalle(id){
   const p = DB.proyectos.find(x=>x.id===id);
   if(!p){ root().innerHTML = `<div class="empty">Proyecto no encontrado.</div>`; return; }
+  if(currentProyectoDetalleId !== id){ currentProyectoDetalleId = id; currentProyectoTab = 'resumen'; }
   const sesiones = DB.sesionesTrabajo.filter(s=>s.proyectoId===id).sort((a,b)=>new Date(b.inicio)-new Date(a.inicio));
   const crs = DB.comptesRendus.filter(c=>c.proyectoId===id).sort((a,b)=>new Date(b.fecha)-new Date(a.fecha));
   const tareas = DB.tareas.filter(t=>t.proyectoId===id);
+  const documentos = DB.documentos.filter(d=>d.proyectoId===id);
+  const pagos = DB.pagos.filter(pg=>pg.proyectoId===id);
   const activa = activeSessionGlobal();
   const activaEsteProyecto = activa && activa.proyectoId===id;
   const totalHorasSesiones = sesiones.filter(s=>s.fin).reduce((s,x)=>s+(new Date(x.fin)-new Date(x.inicio)),0)/3600000;
+
+  let tabContent = '';
+  if(currentProyectoTab==='resumen') tabContent = buildResumenTab(p, tareas, pagos);
+  else if(currentProyectoTab==='sesiones') tabContent = buildSesionesTab(sesiones, totalHorasSesiones);
+  else if(currentProyectoTab==='cr') tabContent = buildCRTab(id, crs);
+  else if(currentProyectoTab==='tareas') tabContent = buildTareasTab(id, tareas);
+  else if(currentProyectoTab==='documentos') tabContent = buildDocumentosTab(id, documentos);
+  else if(currentProyectoTab==='pagos') tabContent = buildPagosTab(id, pagos);
 
   root().innerHTML = `
     <a href="#admin/proyectos" class="mono" style="font-size:11.5px; color:var(--text-faint);">← volver a proyectos</a>
     <h2 class="mod-title" style="margin-top:10px;">${p.nombre}</h2>
     <p class="mod-desc">${p.cliente} · ${p.tipo||''} · <span class="pill tag-dim">${p.etapa}</span> · ${fmt(p.honorarios)}</p>
-
     <div class="card" id="timer-card"></div>
+    <div class="tabs">${PROYECTO_TABS.map(([k,l])=>`<div class="tab ${currentProyectoTab===k?'active':''}" onclick="setProyectoTab('${k}')">${l}</div>`).join('')}</div>
+    <div id="proyecto-tab-content">${tabContent}</div>`;
 
+  renderTimerCard(p, activa, activaEsteProyecto);
+  clearSessionTimer();
+  if(activaEsteProyecto){
+    sessionTimerInterval = setInterval(()=>updateTimerDisplay(activa), 1000);
+  }
+}
+
+/* ---- Pestaña Resumen ---- */
+function buildResumenTab(p, tareas, pagos){
+  const avance = p.horasEst ? Math.min(100, Math.round((p.horasReal||0)/p.horasEst*100)) : null;
+  const rentabilidad = p.honorarios - (p.horasReal||0)*65;
+  const pendientes = tareas.filter(t=>t.estado!=='Hecho');
+  const proxima = pendientes.filter(t=>t.fecha).sort((a,b)=>new Date(a.fecha)-new Date(b.fecha))[0];
+  const totalCobrado = pagos.filter(pg=>pg.estado==='Cobrado').reduce((s,pg)=>s+(pg.monto||0),0);
+  return `
+    <div class="grid" style="margin-bottom:16px;">
+      <div class="metric"><div class="lbl">Avance (horas)</div><div class="val">${avance!==null?avance+'%':'—'}</div></div>
+      <div class="metric"><div class="lbl">Rentabilidad estimada</div><div class="val" style="color:${rentabilidad>=0?'var(--ok)':'var(--danger)'}">${fmt(rentabilidad)}</div></div>
+      <div class="metric"><div class="lbl">Tareas pendientes</div><div class="val">${pendientes.length}</div></div>
+      <div class="metric"><div class="lbl">Cobrado / honorarios</div><div class="val">${fmt(totalCobrado)} / ${fmt(p.honorarios)}</div></div>
+    </div>
+    ${proxima? `<div class="card" style="border-color:var(--orange); background:rgba(255,122,61,.06); margin-bottom:16px;">Próximo vencimiento: <b style="color:var(--text)">${proxima.titulo}</b> — ${proxima.fecha}</div>` : ''}
     <div class="card">
-      <h3 style="font-family:'Space Grotesk',sans-serif; font-size:14px; margin-bottom:4px;">Historial de sesiones</h3>
-      <p class="field-note" style="margin-bottom:12px;">Horas acumuladas en este proyecto vía sesiones: <b style="color:var(--text)">${totalHorasSesiones.toFixed(2)} h</b></p>
+      <div class="toolbar" style="margin-bottom:0;">
+        <h3 style="font-family:'Space Grotesk',sans-serif; font-size:14px; margin:0;">Ficha del proyecto</h3>
+        <button class="btn btn-sm" onclick="toggleEditProyecto(${p.id})">${editingProyectoId===p.id?'Cerrar':'Editar ficha'}</button>
+      </div>
+      ${editingProyectoId===p.id ? `<table style="margin-top:14px;"><tbody>${renderEditProyectoForm(p)}</tbody></table>` : `
+      <div class="grid" style="margin-top:14px;">
+        <div><label>Cliente</label><div class="mono" style="padding-top:4px; font-size:13px;">${p.cliente||'—'}</div></div>
+        <div><label>Tipo</label><div class="mono" style="padding-top:4px; font-size:13px;">${p.tipo||'—'}</div></div>
+        <div><label>Fecha</label><div class="mono" style="padding-top:4px; font-size:13px;">${p.fecha||'—'}</div></div>
+        <div><label>Horas est. / reales</label><div class="mono" style="padding-top:4px; font-size:13px;">${p.horasEst||0} / ${p.horasReal||0}</div></div>
+      </div>
+      <div style="margin-top:14px;"><label>Notas internas</label><div style="font-size:13px; color:var(--text-dim); margin-top:4px;">${p.notas||'—'}</div></div>`}
+    </div>`;
+}
+
+/* ---- Pestaña Sesiones (cronómetro vive fuera de la pestaña, arriba) ---- */
+function buildSesionesTab(sesiones, totalHorasSesiones){
+  return `
+    <div class="card">
+      <p class="field-note" style="margin-bottom:12px;">Horas acumuladas en este proyecto vía sesiones: <b style="color:var(--text)">${totalHorasSesiones.toFixed(2)} h</b>. El botón para iniciar/detener sesión está arriba de las pestañas.</p>
       <table>
         <thead><tr><th>Inicio</th><th>Fin</th><th>Duración</th><th>Nota</th><th></th></tr></thead>
         <tbody>${sesiones.map(s=>`
@@ -779,61 +843,178 @@ function renderProyectoDetalle(id){
           ${editingId.sesionesTrabajo===s.id ? renderEditSesionForm(s) : ''}`).join('') || `<tr><td colspan="5" class="empty">Sin sesiones registradas.</td></tr>`}
         </tbody>
       </table>
-    </div>
+    </div>`;
+}
 
+/* ---- Pestaña CR ---- */
+function buildCRTab(id, crs){
+  return `
     <div class="card">
-      <h3 style="font-family:'Space Grotesk',sans-serif; font-size:14px; margin-bottom:12px;">Comptes-rendus de reunión</h3>
+      <div class="toolbar" style="margin-bottom:${addOpen.cr?'14px':'0'};">
+        <h3 style="font-family:'Space Grotesk',sans-serif; font-size:14px; margin:0;">Nuevo CR</h3>
+        <button class="btn btn-sm" onclick="toggleAddPanel('cr')">${addOpen.cr?'Cerrar':'+ Nuevo'}</button>
+      </div>
+      ${!addOpen.cr ? '' : `
       <div class="grid">
         <div><label>Fecha</label><input type="date" id="cr-fecha"></div>
         <div style="grid-column:span 2;"><label>Asistentes</label><input id="cr-asistentes" placeholder="Jeff, cliente, ..."></div>
       </div>
       <div style="margin-top:10px;"><label>Contenido</label><textarea id="cr-contenido" rows="2"></textarea></div>
       <div style="margin-top:10px;"><label>Acciones a seguir</label><textarea id="cr-acciones" rows="2"></textarea></div>
-      <button class="btn btn-primary" style="margin-top:14px;" onclick="addCR(${id})">+ añadir CR</button>
-      <table style="margin-top:16px;">
-        <thead><tr><th>Fecha</th><th>Asistentes</th><th>Contenido</th><th>Acciones</th><th></th></tr></thead>
-        <tbody>${crs.map(c=>`
-          <tr><td>${c.fecha}</td><td>${c.asistentes}</td><td style="max-width:220px;">${c.contenido}</td><td style="max-width:200px;">${c.acciones||'—'}</td>
-          <td style="white-space:nowrap;">
-            <button class="btn btn-sm" onclick="toggleEdit('comptesRendus',${c.id})">${editingId.comptesRendus===c.id?'Cerrar':'Editar'}</button>
-            <button class="btn btn-sm btn-danger" onclick="deleteItem('comptesRendus',${c.id})">✕</button>
-          </td></tr>
-          ${editingId.comptesRendus===c.id ? renderEditCRForm(c) : ''}`).join('') || `<tr><td colspan="5" class="empty">Sin CR registrados.</td></tr>`}
-        </tbody>
-      </table>
+      <button class="btn btn-primary" style="margin-top:14px;" onclick="addCR(${id})">+ añadir CR</button>`}
     </div>
+    <table>
+      <thead><tr><th>Fecha</th><th>Asistentes</th><th>Contenido</th><th>Acciones</th><th></th></tr></thead>
+      <tbody>${crs.map(c=>`
+        <tr><td>${c.fecha}</td><td>${c.asistentes}</td><td style="max-width:220px;">${c.contenido}</td><td style="max-width:200px;">${c.acciones||'—'}</td>
+        <td style="white-space:nowrap;">
+          <button class="btn btn-sm" onclick="toggleEdit('comptesRendus',${c.id})">${editingId.comptesRendus===c.id?'Cerrar':'Editar'}</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteItem('comptesRendus',${c.id})">✕</button>
+        </td></tr>
+        ${editingId.comptesRendus===c.id ? renderEditCRForm(c) : ''}`).join('') || `<tr><td colspan="5" class="empty">Sin CR registrados.</td></tr>`}
+      </tbody>
+    </table>`;
+}
 
+/* ---- Pestaña Tareas ---- */
+function buildTareasTab(id, tareas){
+  return `
     <div class="card">
-      <h3 style="font-family:'Space Grotesk',sans-serif; font-size:14px; margin-bottom:12px;">Tareas</h3>
+      <div class="toolbar" style="margin-bottom:${addOpen.tareas?'14px':'0'};">
+        <h3 style="font-family:'Space Grotesk',sans-serif; font-size:14px; margin:0;">Nueva tarea</h3>
+        <button class="btn btn-sm" onclick="toggleAddPanel('tareas')">${addOpen.tareas?'Cerrar':'+ Nueva'}</button>
+      </div>
+      ${!addOpen.tareas ? '' : `
       <div class="grid">
         <div><label>Título</label><input id="tk-titulo"></div>
         <div><label>Responsable</label><input id="tk-responsable"></div>
         <div><label>Estado</label><select id="tk-estado"><option>Pendiente</option><option>En curso</option><option>Hecho</option></select></div>
         <div><label>Fecha límite</label><input type="date" id="tk-fecha"></div>
       </div>
-      <button class="btn btn-primary" style="margin-top:14px;" onclick="addTarea(${id})">+ añadir tarea</button>
-      <table style="margin-top:16px;">
-        <thead><tr><th>Título</th><th>Responsable</th><th>Estado</th><th>Fecha</th><th></th></tr></thead>
-        <tbody>${tareas.map(t=>`
-          <tr><td>${t.titulo}</td><td>${t.responsable||'—'}</td>
-          <td><select onchange="setTareaEstado(${t.id}, this.value)">${['Pendiente','En curso','Hecho'].map(e=>`<option ${e===t.estado?'selected':''}>${e}</option>`).join('')}</select></td>
-          <td>${t.fecha||'—'}</td>
-          <td style="white-space:nowrap;">
-            <button class="btn btn-sm" onclick="toggleEdit('tareas',${t.id})">${editingId.tareas===t.id?'Cerrar':'Editar'}</button>
-            <button class="btn btn-sm btn-danger" onclick="deleteItem('tareas',${t.id})">✕</button>
-          </td></tr>
-          ${editingId.tareas===t.id ? renderEditTareaForm(t) : ''}`).join('') || `<tr><td colspan="5" class="empty">Sin tareas registradas.</td></tr>`}
-        </tbody>
-      </table>
-    </div>`;
-
-  renderTimerCard(p, activa, activaEsteProyecto);
-  clearSessionTimer();
-  if(activaEsteProyecto){
-    sessionTimerInterval = setInterval(()=>updateTimerDisplay(activa), 1000);
-  }
+      <button class="btn btn-primary" style="margin-top:14px;" onclick="addTarea(${id})">+ añadir tarea</button>`}
+    </div>
+    <table>
+      <thead><tr><th>Título</th><th>Responsable</th><th>Estado</th><th>Fecha</th><th></th></tr></thead>
+      <tbody>${tareas.map(t=>`
+        <tr><td>${t.titulo}</td><td>${t.responsable||'—'}</td>
+        <td><select onchange="setTareaEstado(${t.id}, this.value)">${['Pendiente','En curso','Hecho'].map(e=>`<option ${e===t.estado?'selected':''}>${e}</option>`).join('')}</select></td>
+        <td>${t.fecha||'—'}</td>
+        <td style="white-space:nowrap;">
+          <button class="btn btn-sm" onclick="toggleEdit('tareas',${t.id})">${editingId.tareas===t.id?'Cerrar':'Editar'}</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteItem('tareas',${t.id})">✕</button>
+        </td></tr>
+        ${editingId.tareas===t.id ? renderEditTareaForm(t) : ''}`).join('') || `<tr><td colspan="5" class="empty">Sin tareas registradas.</td></tr>`}
+      </tbody>
+    </table>`;
 }
 
+/* ---- Pestaña Documentos (filtrados por proyecto) ---- */
+function buildDocumentosTab(id, documentos){
+  return `
+    <div class="card">
+      <div class="toolbar" style="margin-bottom:${addOpen.documentosProyecto?'14px':'0'};">
+        <h3 style="font-family:'Space Grotesk',sans-serif; font-size:14px; margin:0;">Nuevo documento</h3>
+        <button class="btn btn-sm" onclick="toggleAddPanel('documentosProyecto')">${addOpen.documentosProyecto?'Cerrar':'+ Nuevo'}</button>
+      </div>
+      ${!addOpen.documentosProyecto ? '' : `
+      <div class="grid">
+        <div><label>Nombre</label><input id="dp-nombre"></div>
+        <div><label>Tipo</label><input id="dp-tipo" placeholder="Devis, informe, plano…"></div>
+        <div><label>Fecha</label><input type="date" id="dp-fecha"></div>
+      </div>
+      <button class="btn btn-primary" style="margin-top:14px;" onclick="addDocumentoProyecto(${id})">+ registrar documento</button>`}
+    </div>
+    <table>
+      <thead><tr><th>Nombre</th><th>Proyecto</th><th>Tipo</th><th>Fecha</th><th></th></tr></thead>
+      <tbody>${documentos.map(d=>{
+        const p2 = DB.proyectos.find(x=>x.id===d.proyectoId);
+        return `<tr><td>${d.nombre}</td><td>${p2?p2.nombre:'—'}</td><td>${d.tipo||'—'}</td><td>${d.fecha||'—'}</td>
+        <td style="white-space:nowrap;">
+          <button class="btn btn-sm" onclick="toggleEdit('documentos',${d.id})">${editingId.documentos===d.id?'Cerrar':'Editar'}</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteItem('documentos',${d.id})">✕</button>
+        </td></tr>
+        ${editingId.documentos===d.id ? renderEditDocumentoForm(d) : ''}`;
+      }).join('') || `<tr><td colspan="5" class="empty">Sin documentos para este proyecto.</td></tr>`}
+      </tbody>
+    </table>`;
+}
+function addDocumentoProyecto(proyectoId){
+  const nombre = document.getElementById('dp-nombre').value.trim();
+  if(!nombre) return alert('Falta el nombre del documento.');
+  DB.documentos.push({id:uid(DB.documentos), nombre, proyectoId, tipo:document.getElementById('dp-tipo').value, fecha:document.getElementById('dp-fecha').value});
+  saveDB(); renderProyectoDetalle(proyectoId);
+}
+
+/* ---- Pestaña Pagos / Facturación ---- */
+function buildPagosTab(id, pagos){
+  const totalPrevisto = pagos.reduce((s,pg)=>s+(pg.monto||0),0);
+  const totalCobrado = pagos.filter(pg=>pg.estado==='Cobrado').reduce((s,pg)=>s+(pg.monto||0),0);
+  return `
+    <div class="grid" style="margin-bottom:16px;">
+      <div class="metric"><div class="lbl">Total previsto (tramos)</div><div class="val">${fmt(totalPrevisto)}</div></div>
+      <div class="metric"><div class="lbl">Cobrado</div><div class="val" style="color:var(--ok)">${fmt(totalCobrado)}</div></div>
+      <div class="metric"><div class="lbl">Pendiente</div><div class="val" style="color:var(--orange)">${fmt(totalPrevisto-totalCobrado)}</div></div>
+    </div>
+    <div class="card">
+      <div class="toolbar" style="margin-bottom:${addOpen.pagos?'14px':'0'};">
+        <h3 style="font-family:'Space Grotesk',sans-serif; font-size:14px; margin:0;">Nuevo tramo de pago</h3>
+        <button class="btn btn-sm" onclick="toggleAddPanel('pagos')">${addOpen.pagos?'Cerrar':'+ Nuevo'}</button>
+      </div>
+      ${!addOpen.pagos ? '' : `
+      <div class="grid">
+        <div><label>Concepto</label><input id="pg-concepto" placeholder="Acompte, étape 1…"></div>
+        <div><label>Monto (€)</label><input type="number" id="pg-monto"></div>
+        <div><label>Fecha prevista</label><input type="date" id="pg-fechaPrevista"></div>
+        <div><label>Estado</label><select id="pg-estado"><option>Pendiente</option><option>Facturado</option><option>Cobrado</option></select></div>
+      </div>
+      <button class="btn btn-primary" style="margin-top:14px;" onclick="addPago(${id})">+ añadir tramo</button>`}
+    </div>
+    <table>
+      <thead><tr><th>Concepto</th><th>Monto</th><th>Fecha prevista</th><th>Estado</th><th></th></tr></thead>
+      <tbody>${pagos.map(pg=>`
+        <tr><td>${pg.concepto}</td><td>${fmt(pg.monto)}</td><td>${pg.fechaPrevista||'—'}</td>
+        <td><select onchange="setPagoEstado(${pg.id}, this.value)">${['Pendiente','Facturado','Cobrado'].map(e=>`<option ${e===pg.estado?'selected':''}>${e}</option>`).join('')}</select></td>
+        <td style="white-space:nowrap;">
+          <button class="btn btn-sm" onclick="toggleEdit('pagos',${pg.id})">${editingId.pagos===pg.id?'Cerrar':'Editar'}</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteItem('pagos',${pg.id})">✕</button>
+        </td></tr>
+        ${editingId.pagos===pg.id ? renderEditPagoForm(pg) : ''}`).join('') || `<tr><td colspan="5" class="empty">Sin tramos de pago registrados.</td></tr>`}
+      </tbody>
+    </table>`;
+}
+function addPago(proyectoId){
+  const monto = parseFloat(document.getElementById('pg-monto').value)||0;
+  const concepto = document.getElementById('pg-concepto').value.trim();
+  if(!concepto||!monto) return alert('Falta el concepto o el monto.');
+  DB.pagos.push({id:uid(DB.pagos), proyectoId, concepto, monto, fechaPrevista:document.getElementById('pg-fechaPrevista').value, estado:document.getElementById('pg-estado').value, fechaCobro:''});
+  saveDB(); renderProyectoDetalle(proyectoId);
+}
+function setPagoEstado(id, estado){
+  const pg = DB.pagos.find(x=>x.id===id);
+  if(pg){ pg.estado=estado; if(estado==='Cobrado' && !pg.fechaCobro) pg.fechaCobro=new Date().toISOString().slice(0,10); saveDB(); route(); }
+}
+function renderEditPagoForm(pg){
+  return `<tr><td colspan="5"><div class="card" style="margin:8px 0 4px; background:var(--panel-2);">
+    <div class="grid">
+      <div><label>Concepto</label><input id="e-concepto-${pg.id}" value="${pg.concepto}"></div>
+      <div><label>Monto (€)</label><input type="number" id="e-monto-${pg.id}" value="${pg.monto}"></div>
+      <div><label>Fecha prevista</label><input type="date" id="e-fechaPrevista-${pg.id}" value="${pg.fechaPrevista||''}"></div>
+      <div><label>Estado</label><select id="e-estado-${pg.id}">${['Pendiente','Facturado','Cobrado'].map(e=>`<option ${e===pg.estado?'selected':''}>${e}</option>`).join('')}</select></div>
+    </div>
+    <div style="margin-top:14px; display:flex; gap:10px;">
+      <button class="btn btn-primary" onclick="saveEditPago(${pg.id})">Guardar cambios</button>
+      <button class="btn" onclick="toggleEdit('pagos',${pg.id})">Cancelar</button>
+    </div>
+  </div></td></tr>`;
+}
+function saveEditPago(id){
+  const pg = DB.pagos.find(x=>x.id===id); if(!pg) return;
+  const g = f => document.getElementById(f+'-'+id).value;
+  pg.concepto=g('e-concepto').trim()||pg.concepto; pg.monto=parseFloat(g('e-monto'))||0; pg.fechaPrevista=g('e-fechaPrevista'); pg.estado=g('e-estado');
+  editingId.pagos = null; saveDB(); renderProyectoDetalle(pg.proyectoId);
+}
+
+/* ---- Cronómetro (siempre visible, fuera de las pestañas) ---- */
 function renderTimerCard(p, activa, activaEsteProyecto){
   const card = document.getElementById('timer-card');
   if(!card) return;
@@ -930,7 +1111,7 @@ function addTarea(proyectoId){
   DB.tareas.push({id:uid(DB.tareas), proyectoId, titulo, responsable:document.getElementById('tk-responsable').value, estado:document.getElementById('tk-estado').value, fecha:document.getElementById('tk-fecha').value});
   saveDB(); renderProyectoDetalle(proyectoId);
 }
-function setTareaEstado(id, estado){ const t=DB.tareas.find(x=>x.id===id); if(t){ t.estado=estado; saveDB(); } }
+function setTareaEstado(id, estado){ const t=DB.tareas.find(x=>x.id===id); if(t){ t.estado=estado; saveDB(); route(); } }
 function renderEditTareaForm(t){
   return `<tr><td colspan="5"><div class="card" style="margin:8px 0 4px; background:var(--panel-2);">
     <div class="grid">
@@ -974,6 +1155,11 @@ function renderClientes(){
     <h2 class="mod-title">Clientes</h2>
     <p class="mod-desc">CRM ligero — empresas BTP con las que trabajas.</p>
     <div class="card">
+      <div class="toolbar" style="margin-bottom:${addOpen.clientes?'14px':'0'};">
+        <h3 style="font-family:'Space Grotesk',sans-serif; font-size:14px; margin:0;">Nuevo cliente</h3>
+        <button class="btn btn-sm" onclick="toggleAddPanel('clientes')">${addOpen.clientes?'Cerrar':'+ Nuevo'}</button>
+      </div>
+      ${!addOpen.clientes ? '' : `
       <div class="grid">
         <div><label>Razón social (empresa)</label><input id="c-nombre"></div>
         <div><label>Nombre del contacto directo</label><input id="c-contacto"></div>
@@ -981,7 +1167,7 @@ function renderClientes(){
         <div><label>Teléfono</label><input id="c-telefono"></div>
         <div><label>Recurrencia</label><select id="c-recurrencia"><option value="puntual">Puntual</option><option value="recurrente">Recurrente</option></select></div>
       </div>
-      <button class="btn btn-primary" style="margin-top:14px;" onclick="addCliente()">+ añadir cliente</button>
+      <button class="btn btn-primary" style="margin-top:14px;" onclick="addCliente()">+ añadir cliente</button>`}
     </div>
     <table>
       <thead><tr><th>Razón social</th><th>Contacto</th><th>Email</th><th>Recurrencia</th><th>Proyectos</th><th></th></tr></thead>
@@ -1035,6 +1221,11 @@ function renderBiblioteca(){
     <h2 class="mod-title">Biblioteca de definiciones GH</h2>
     <p class="mod-desc">Tu ventaja competitiva real — cataloga lo que ya resolviste para reutilizarlo.</p>
     <div class="card">
+      <div class="toolbar" style="margin-bottom:${addOpen.biblioteca?'14px':'0'};">
+        <h3 style="font-family:'Space Grotesk',sans-serif; font-size:14px; margin:0;">Nueva definición</h3>
+        <button class="btn btn-sm" onclick="toggleAddPanel('biblioteca')">${addOpen.biblioteca?'Cerrar':'+ Nueva'}</button>
+      </div>
+      ${!addOpen.biblioteca ? '' : `
       <div class="grid">
         <div><label>Nombre</label><input id="b-nombre"></div>
         <div><label>Madurez</label><select id="b-madurez">${MADUREZ.map(m=>`<option>${m}</option>`).join('')}</select></div>
@@ -1042,7 +1233,7 @@ function renderBiblioteca(){
         <div><label>Proyectos donde se usó</label><input id="b-proyectos"></div>
       </div>
       <div style="margin-top:12px;"><label>Descripción</label><textarea id="b-desc" rows="2"></textarea></div>
-      <button class="btn btn-primary" style="margin-top:14px;" onclick="addBiblioteca()">+ añadir definición</button>
+      <button class="btn btn-primary" style="margin-top:14px;" onclick="addBiblioteca()">+ añadir definición</button>`}
     </div>
     <table>
       <thead><tr><th>Nombre</th><th>Madurez</th><th>Plugins</th><th>Descripción</th><th></th></tr></thead>
@@ -1096,6 +1287,11 @@ function renderTiempo(){
       <div class="field-note">Facturación electrónica: aún no hay plataforma agréée conectada. Recomendado: Pennylane (API pública + webhooks). <button class="btn btn-sm" style="margin-left:8px;" onclick="alert('Aquí se abriría el flujo OAuth de conexión con Pennylane en la versión conectada al backend GAS.')">Conectar Pennylane</button></div>
     </div>
     <div class="card">
+      <div class="toolbar" style="margin-bottom:${addOpen.tiempo?'14px':'0'};">
+        <h3 style="font-family:'Space Grotesk',sans-serif; font-size:14px; margin:0;">Registrar horas manualmente</h3>
+        <button class="btn btn-sm" onclick="toggleAddPanel('tiempo')">${addOpen.tiempo?'Cerrar':'+ Nuevo'}</button>
+      </div>
+      ${!addOpen.tiempo ? '' : `
       <div class="grid">
         <div><label>Proyecto</label><select id="t-proyecto">${DB.proyectos.map(p=>`<option value="${p.id}">${p.nombre}</option>`).join('')}</select></div>
         <div><label>Fecha</label><input type="date" id="t-fecha"></div>
@@ -1103,7 +1299,7 @@ function renderTiempo(){
         <div><label>Tarifa (€/h)</label><input type="number" id="t-tarifa" value="65"></div>
         <div><label>Facturable</label><select id="t-facturable"><option value="true">Sí</option><option value="false">No</option></select></div>
       </div>
-      <button class="btn btn-primary" style="margin-top:14px;" onclick="addTiempo()">+ registrar horas</button>
+      <button class="btn btn-primary" style="margin-top:14px;" onclick="addTiempo()">+ registrar horas</button>`}
     </div>
     <div class="metric" style="margin-bottom:16px; max-width:260px;"><div class="lbl">Valor horas facturables</div><div class="val">${fmt(totalFact)}</div></div>
     <table>
@@ -1170,14 +1366,18 @@ function renderFinanzas(){
       <div class="metric"><div class="lbl">Cashflow neto</div><div class="val">${fmt(cashflow)}</div></div>
     </div>
     <div class="card">
-      <h3 style="font-family:'Space Grotesk',sans-serif; font-size:14px; margin-bottom:12px;">Registrar gasto</h3>
+      <div class="toolbar" style="margin-bottom:${addOpen.gastos?'14px':'0'};">
+        <h3 style="font-family:'Space Grotesk',sans-serif; font-size:14px; margin:0;">Registrar gasto</h3>
+        <button class="btn btn-sm" onclick="toggleAddPanel('gastos')">${addOpen.gastos?'Cerrar':'+ Nuevo'}</button>
+      </div>
+      ${!addOpen.gastos ? '' : `
       <div class="grid">
         <div><label>Fecha</label><input type="date" id="g-fecha"></div>
         <div><label>Concepto</label><input id="g-concepto"></div>
         <div><label>Monto (€)</label><input type="number" id="g-monto"></div>
         <div><label>Categoría</label><input id="g-categoria" placeholder="Software, licencias…"></div>
       </div>
-      <button class="btn btn-primary" style="margin-top:14px;" onclick="addGasto()">+ registrar gasto</button>
+      <button class="btn btn-primary" style="margin-top:14px;" onclick="addGasto()">+ registrar gasto</button>`}
     </div>
     <table style="margin-bottom:24px;">
       <thead><tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><th>Monto</th><th></th></tr></thead>
@@ -1236,13 +1436,18 @@ function renderDocumentos(){
     <h2 class="mod-title">Documentos</h2>
     <p class="mod-desc">Registro de entregables por proyecto (metadatos — el almacenamiento real iría en Drive vía GAS).</p>
     <div class="card">
+      <div class="toolbar" style="margin-bottom:${addOpen.documentos?'14px':'0'};">
+        <h3 style="font-family:'Space Grotesk',sans-serif; font-size:14px; margin:0;">Registrar documento</h3>
+        <button class="btn btn-sm" onclick="toggleAddPanel('documentos')">${addOpen.documentos?'Cerrar':'+ Nuevo'}</button>
+      </div>
+      ${!addOpen.documentos ? '' : `
       <div class="grid">
         <div><label>Nombre</label><input id="d-nombre"></div>
         <div><label>Proyecto</label><select id="d-proyecto">${DB.proyectos.map(p=>`<option value="${p.id}">${p.nombre}</option>`).join('')}</select></div>
         <div><label>Tipo</label><input id="d-tipo" placeholder="Devis, informe, plano…"></div>
         <div><label>Fecha</label><input type="date" id="d-fecha"></div>
       </div>
-      <button class="btn btn-primary" style="margin-top:14px;" onclick="addDocumento()">+ registrar documento</button>
+      <button class="btn btn-primary" style="margin-top:14px;" onclick="addDocumento()">+ registrar documento</button>`}
     </div>
     <table>
       <thead><tr><th>Nombre</th><th>Proyecto</th><th>Tipo</th><th>Fecha</th><th></th></tr></thead>
@@ -1475,6 +1680,9 @@ window.setImpuestosTab=setImpuestosTab; window.updateFiscal=updateFiscal; window
 window.startSession=startSession; window.stopSession=stopSession; window.saveEditSesion=saveEditSesion;
 window.addCR=addCR; window.saveEditCR=saveEditCR;
 window.addTarea=addTarea; window.setTareaEstado=setTareaEstado; window.saveEditTarea=saveEditTarea;
+window.toggleAddPanel=toggleAddPanel; window.setProyectoTab=setProyectoTab;
+window.addDocumentoProyecto=addDocumentoProyecto;
+window.addPago=addPago; window.setPagoEstado=setPagoEstado; window.saveEditPago=saveEditPago;
 </script>
 </body>
 </html>
