@@ -105,7 +105,7 @@ section.block{padding:100px 0;}
 .sec-sub{font-size:13.5px; color:var(--text-dim); max-width:380px;}
 .proj-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--border);}
 .proj-card{background:var(--bg);}
-.proj-thumb{aspect-ratio:4/3; background:repeating-linear-gradient(135deg, var(--panel-2) 0px, var(--panel-2) 2px, var(--panel) 2px, var(--panel) 26px); display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--text-faint); border-bottom:1px solid var(--border);}
+.proj-thumb{position:relative; aspect-ratio:4/3; background:repeating-linear-gradient(135deg, var(--panel-2) 0px, var(--panel-2) 2px, var(--panel) 2px, var(--panel) 26px); display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--text-faint); border-bottom:1px solid var(--border);}
 .proj-body{padding:20px;}
 .proj-tag{font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--cyan); text-transform:uppercase; letter-spacing:.06em;}
 .proj-name{font-family:'Space Grotesk', sans-serif; font-size:17px; font-weight:600; margin-top:6px;}
@@ -390,7 +390,7 @@ function buildPublicProjGrid(publicables, t){
     const loc = p[currentLang] || p.fr || {};
     return `
         <div class="proj-card">
-          <div class="proj-thumb">[ imagen del proyecto ]</div>
+          <div class="proj-thumb">[ imagen del proyecto ]${p.destacado?'<span style="position:absolute; top:10px; right:10px; color:var(--orange); font-size:14px;">★</span>':''}</div>
           <div class="proj-body">
             <div class="proj-tag">${loc.tag||p.tipo}</div>
             <div class="proj-name">${p.nombre}</div>
@@ -542,18 +542,20 @@ function renderPublicShell(t){
 const MODULES = [
   {key:'dashboard', label:'Dashboard', idx:'01'},
   {key:'proyectos', label:'Proyectos', idx:'02'},
-  {key:'clientes', label:'Clientes', idx:'03'},
-  {key:'biblioteca', label:'Biblioteca GH', idx:'04'},
-  {key:'tiempo', label:'Tiempo', idx:'05'},
-  {key:'finanzas', label:'Finanzas', idx:'06'},
-  {key:'impuestos', label:'Impuestos', idx:'07'},
-  {key:'documentos', label:'Documentos', idx:'08'}
+  {key:'portafolio', label:'Portafolio', idx:'03'},
+  {key:'clientes', label:'Clientes', idx:'04'},
+  {key:'biblioteca', label:'Biblioteca GH', idx:'05'},
+  {key:'tiempo', label:'Tiempo', idx:'06'},
+  {key:'finanzas', label:'Finanzas', idx:'07'},
+  {key:'impuestos', label:'Impuestos', idx:'08'},
+  {key:'documentos', label:'Documentos', idx:'09'}
 ];
 
 function renderAdmin(subpath){
   clearSessionTimer();
   const parts = subpath.split('/').filter(Boolean);
   const modKey = parts[0] || 'dashboard';
+  const modLabel = (MODULES.find(m=>m.key===modKey)||{}).label || 'Dashboard';
   document.getElementById('app').innerHTML = `
     <div id="admin-shell">
       <div class="sidebar">
@@ -566,13 +568,13 @@ function renderAdmin(subpath){
       </div>
       <div class="content">
         <div class="topbar">
-          <div class="eyebrow mono">NEA · panel interno</div>
+          <div class="eyebrow mono">NEA / ${modLabel}</div>
           <span class="save-indicator" id="save-indicator"></span>
         </div>
         <div id="module-root"></div>
       </div>
     </div>`;
-  const renderers = {dashboard:renderDashboard, proyectos:renderProyectos, clientes:renderClientes, biblioteca:renderBiblioteca, tiempo:renderTiempo, finanzas:renderFinanzas, impuestos:renderImpuestos, documentos:renderDocumentos};
+  const renderers = {dashboard:renderDashboard, proyectos:renderProyectos, portafolio:renderPortafolio, clientes:renderClientes, biblioteca:renderBiblioteca, tiempo:renderTiempo, finanzas:renderFinanzas, impuestos:renderImpuestos, documentos:renderDocumentos};
   (renderers[modKey]||renderDashboard)(parts.slice(1));
 }
 function root(){ return document.getElementById('module-root'); }
@@ -624,11 +626,14 @@ let editingProyectoId = null;
 let sessionTimerInterval = null;
 function clearSessionTimer(){ if(sessionTimerInterval){ clearInterval(sessionTimerInterval); sessionTimerInterval=null; } }
 
+let proyectosView = 'kanban';
+function setProyectosView(v){ proyectosView = v; renderProyectos(); }
+
 function renderProyectos(subparts){
   if(subparts && subparts[0]==='detalle'){ return renderProyectoDetalle(parseInt(subparts[1])); }
   root().innerHTML = `
     <h2 class="mod-title">Proyectos</h2>
-    <p class="mod-desc">Pipeline comercial completo. Click en el nombre para abrir la gestión del proyecto (sesiones de trabajo, CR, tareas).</p>
+    <p class="mod-desc">Pipeline comercial completo. Click en un proyecto para abrir su gestión (sesiones de trabajo, CR, tareas, pagos).</p>
     <div class="card">
       <div class="toolbar" style="margin-bottom:${addOpen.proyectos?'14px':'0'};">
         <h3 style="font-family:'Space Grotesk',sans-serif; font-size:14px; margin:0;">Nuevo proyecto</h3>
@@ -648,8 +653,37 @@ function renderProyectos(subparts){
       </div>
       <button class="btn btn-primary" style="margin-top:14px;" onclick="addProyecto()">+ añadir proyecto</button>`}
     </div>
-    <table>
-      <thead><tr><th>Nombre</th><th>Cliente</th><th>Etapa</th><th>Honorarios</th><th>Horas est/real</th><th>Público</th><th></th></tr></thead>
+
+    <div class="toolbar">
+      <div></div>
+      <div style="display:flex; gap:2px; border:1px solid var(--border);">
+        <button class="btn btn-sm" style="border:none; ${proyectosView==='kanban'?'color:var(--cyan);':''}" onclick="setProyectosView('kanban')">Kanban</button>
+        <button class="btn btn-sm" style="border:none; ${proyectosView==='tabla'?'color:var(--cyan);':''}" onclick="setProyectosView('tabla')">Tabla</button>
+      </div>
+    </div>
+
+    <div id="proyectos-view">${proyectosView==='kanban' ? buildProyectosKanban() : buildProyectosTabla()}</div>`;
+}
+
+function buildProyectosKanban(){
+  return `<div class="kanban">
+    ${PIPELINE_STAGES.map(st=>{
+      const items = DB.proyectos.filter(p=>p.etapa===st);
+      return `<div class="kanban-col"><h4>${st} (${items.length})</h4>${items.map(p=>`
+        <div class="kanban-card">
+          <div class="n"><a href="#admin/proyectos/detalle/${p.id}" style="color:var(--text);">${p.nombre}</a></div>
+          <div class="c">${p.cliente||'—'} · ${fmt(p.honorarios)}</div>
+          <div style="margin-top:8px; display:flex; gap:6px; flex-wrap:wrap;">
+            <select style="font-size:10.5px; padding:4px 6px;" onchange="setProyectoEtapa(${p.id}, this.value)">${PIPELINE_STAGES.map(s=>`<option ${s===st?'selected':''}>${s}</option>`).join('')}</select>
+          </div>
+        </div>`).join('') || `<div class="kanban-card" style="color:var(--text-faint);">—</div>`}</div>`;
+    }).join('')}
+  </div>`;
+}
+
+function buildProyectosTabla(){
+  return `<table>
+      <thead><tr><th>Nombre</th><th>Cliente</th><th>Etapa</th><th>Honorarios</th><th>Horas est/real</th><th></th></tr></thead>
       <tbody>${DB.proyectos.map(p=>`
         <tr>
           <td><a href="#admin/proyectos/detalle/${p.id}" style="color:var(--cyan);">${p.nombre}</a></td>
@@ -657,24 +691,19 @@ function renderProyectos(subparts){
           <td><select onchange="setProyectoEtapa(${p.id}, this.value)">${PIPELINE_STAGES.map(s=>`<option ${s===p.etapa?'selected':''}>${s}</option>`).join('')}</select></td>
           <td>${fmt(p.honorarios)}</td>
           <td>${p.horasEst||0} / ${p.horasReal||0}</td>
-          <td><input type="checkbox" ${p.publicable?'checked':''} onchange="toggleProyectoPublico(${p.id}, this.checked)"></td>
           <td style="white-space:nowrap;">
             <button class="btn btn-sm" onclick="toggleEditProyecto(${p.id})">${editingProyectoId===p.id?'Cerrar':'Editar'}</button>
             <button class="btn btn-sm btn-danger" onclick="deleteItem('proyectos',${p.id})">✕</button>
           </td>
         </tr>
         ${editingProyectoId===p.id ? renderEditProyectoForm(p) : ''}
-        `).join('') || `<tr><td colspan="7" class="empty">Sin proyectos aún.</td></tr>`}
+        `).join('') || `<tr><td colspan="6" class="empty">Sin proyectos aún.</td></tr>`}
       </tbody>
     </table>
-    <p class="field-note" style="margin-top:10px;">Marca "público" para que el proyecto aparezca en el portafolio del sitio. Usa "Editar" para completar la ficha pública (tag, descripción, herramientas) y todos los demás datos.</p>`;
+    <p class="field-note" style="margin-top:10px;">Qué se muestra en el portafolio público (tag, descripción, herramientas, idiomas) se gestiona desde el módulo <b style="color:var(--text)">Portafolio</b>, no aquí.</p>`;
 }
-let editProyectoLang = 'fr';
 function renderEditProyectoForm(p){
-  const L = editProyectoLang;
-  const suf = L==='fr' ? '' : '_'+L;
-  const tag = p['publicTag'+suf]||'', desc = p['publicDesc'+suf]||'', tools = p['publicTools'+suf]||'';
-  return `<tr><td colspan="7">
+  return `<tr><td colspan="6">
     <div class="card" style="margin:8px 0 4px; background:var(--panel-2);">
       <div class="grid">
         <div><label>Nombre</label><input id="e-nombre-${p.id}" value="${p.nombre}"></div>
@@ -686,20 +715,6 @@ function renderEditProyectoForm(p){
         <div><label>Fecha</label><input type="date" id="e-fecha-${p.id}" value="${p.fecha||''}"></div>
       </div>
       <div style="margin-top:12px;"><label>Notas internas</label><textarea id="e-notas-${p.id}" rows="2">${p.notas||''}</textarea></div>
-
-      <div style="margin-top:20px; display:flex; align-items:baseline; justify-content:space-between;">
-        <div class="field-note" style="color:var(--cyan); margin:0;">Ficha pública (visible en el portafolio si "público" está activo)</div>
-        <div class="tabs" style="border-bottom:none; margin-bottom:0;">
-          ${['fr','es','en'].map(l=>`<div class="tab ${l===L?'active':''}" style="padding:4px 10px;" onclick="setEditProyectoLang(${p.id},'${l}')">${l.toUpperCase()}</div>`).join('')}
-        </div>
-      </div>
-      <p class="field-note" style="margin-top:2px;">Cada pestaña guarda su propia traducción — el francés (FR) es el idioma por defecto del sitio.</p>
-      <div class="grid" style="margin-top:8px;">
-        <div><label>Tag público (${L.toUpperCase()})</label><input id="e-publicTag-${p.id}" value="${tag}"></div>
-        <div style="grid-column:span 2;"><label>Herramientas — separadas por coma (${L.toUpperCase()})</label><input id="e-publicTools-${p.id}" value="${tools}"></div>
-      </div>
-      <div style="margin-top:12px;"><label>Descripción pública (${L.toUpperCase()})</label><textarea id="e-publicDesc-${p.id}" rows="2">${desc}</textarea></div>
-
       <div style="margin-top:14px; display:flex; gap:10px;">
         <button class="btn btn-primary" onclick="saveEditProyecto(${p.id})">Guardar cambios</button>
         <button class="btn" onclick="toggleEditProyecto(${p.id})">Cancelar</button>
@@ -707,23 +722,7 @@ function renderEditProyectoForm(p){
     </div>
   </td></tr>`;
 }
-function setEditProyectoLang(id, lang){
-  saveEditProyectoFieldsOnly(id);
-  editProyectoLang = lang;
-  renderProyectos();
-}
-// Guarda solo los campos de idioma actuales sin cerrar el formulario, al cambiar de pestaña.
-function saveEditProyectoFieldsOnly(id){
-  const p = DB.proyectos.find(x=>x.id===id);
-  if(!p) return;
-  const L = editProyectoLang, suf = L==='fr' ? '' : '_'+L;
-  const g = f => { const el = document.getElementById(f+'-'+id); return el ? el.value : undefined; };
-  const tag=g('e-publicTag'), tools=g('e-publicTools'), desc=g('e-publicDesc');
-  if(tag!==undefined) p['publicTag'+suf]=tag;
-  if(tools!==undefined) p['publicTools'+suf]=tools;
-  if(desc!==undefined) p['publicDesc'+suf]=desc;
-}
-function toggleEditProyecto(id){ editingProyectoId = editingProyectoId===id ? null : id; editProyectoLang='fr'; renderProyectos(); }
+function toggleEditProyecto(id){ editingProyectoId = editingProyectoId===id ? null : id; renderProyectos(); }
 function saveEditProyecto(id){
   const p = DB.proyectos.find(x=>x.id===id);
   if(!p) return;
@@ -736,7 +735,6 @@ function saveEditProyecto(id){
   p.horasReal = parseFloat(g('e-horasReal'))||0;
   p.fecha = g('e-fecha');
   p.notas = g('e-notas');
-  saveEditProyectoFieldsOnly(id);
   editingProyectoId = null;
   saveDB(); renderProyectos();
 }
@@ -1141,13 +1139,119 @@ function addProyecto(){
     tipo: document.getElementById('p-tipo').value, etapa: document.getElementById('p-etapa').value,
     honorarios: parseFloat(document.getElementById('p-honorarios').value)||0,
     horasEst: parseFloat(document.getElementById('p-horasEst').value)||0, horasReal:0,
-    fecha: document.getElementById('p-fecha').value, notas:'', publicable:false, publicTag:'', publicDesc:'', publicTools:''
+    fecha: document.getElementById('p-fecha').value, notas:'', publicable:false, publicTag:'', publicDesc:'', publicTools:'',
+    ordenPublico: DB.proyectos.length, destacado:false
   });
   saveDB(); renderProyectos();
 }
-function setProyectoEtapa(id, etapa){ const p=DB.proyectos.find(x=>x.id===id); if(p){p.etapa=etapa; saveDB();} }
-function toggleProyectoPublico(id, val){ const p=DB.proyectos.find(x=>x.id===id); if(p){p.publicable=val; if(val && !p.publicTag) p.publicTag=p.tipo; if(val && !p.publicDesc) p.publicDesc=p.notas||''; if(val && !p.publicTools) p.publicTools=''; saveDB();} }
+function setProyectoEtapa(id, etapa){ const p=DB.proyectos.find(x=>x.id===id); if(p){p.etapa=etapa; saveDB(); route();} }
 function deleteItem(coll, id){ if(!confirm('¿Eliminar este registro?')) return; DB[coll] = DB[coll].filter(x=>x.id!==id); saveDB(); route(); }
+
+/* ============================= PORTAFOLIO (contenido público) ============================= */
+// Módulo dedicado a decidir qué se muestra en el sitio público y cómo — separado
+// de la gestión operativa del proyecto (eso vive en Proyectos).
+let portafolioEditId = null;
+let portafolioLang = 'fr';
+let portafolioPreviewLang = 'fr';
+
+function renderPortafolio(){
+  const total = DB.proyectos.length;
+  const publicados = DB.proyectos.filter(p=>p.publicable).length;
+  const sorted = [...DB.proyectos].sort((a,b)=>(a.ordenPublico||0)-(b.ordenPublico||0));
+
+  const savedLang = currentLang;
+  currentLang = portafolioPreviewLang;
+  const previewHtml = buildPublicProjGrid(
+    sorted.filter(p=>p.publicable).map(proyectoToPublicShape),
+    {emptyProj:'Ningún proyecto publicable todavía — activa alguno en la tabla de arriba.'}
+  );
+  currentLang = savedLang;
+
+  root().innerHTML = `
+    <h2 class="mod-title">Portafolio</h2>
+    <p class="mod-desc">Qué proyectos se muestran en el sitio público, en qué orden, destacados o no, y con qué contenido en cada idioma. Los datos internos (honorarios, cliente, horas) nunca salen de aquí.</p>
+    <div class="grid" style="margin-bottom:20px;">
+      <div class="metric"><div class="lbl">Publicados</div><div class="val">${publicados} / ${total}</div></div>
+      <div class="metric"><div class="lbl">Destacados</div><div class="val">${DB.proyectos.filter(p=>p.destacado).length}</div></div>
+    </div>
+    <table>
+      <thead><tr><th>Proyecto</th><th>Etapa</th><th>Publicable</th><th>Destacado</th><th>Orden</th><th></th></tr></thead>
+      <tbody>${sorted.map(p=>`
+        <tr>
+          <td>${p.nombre}</td>
+          <td><span class="pill tag-dim">${p.etapa}</span></td>
+          <td><input type="checkbox" ${p.publicable?'checked':''} onchange="togglePortafolioPublicable(${p.id}, this.checked)"></td>
+          <td><input type="checkbox" ${p.destacado?'checked':''} onchange="togglePortafolioDestacado(${p.id}, this.checked)"></td>
+          <td><input type="number" style="width:64px;" value="${p.ordenPublico||0}" onchange="setPortafolioOrden(${p.id}, this.value)"></td>
+          <td><button class="btn btn-sm" onclick="togglePortafolioEdit(${p.id})">${portafolioEditId===p.id?'Cerrar':'Editar contenido'}</button></td>
+        </tr>
+        ${portafolioEditId===p.id ? renderPortafolioEditForm(p) : ''}
+      `).join('') || `<tr><td colspan="6" class="empty">Sin proyectos — créalos primero en el módulo Proyectos.</td></tr>`}
+      </tbody>
+    </table>
+
+    <div class="card" style="margin-top:24px;">
+      <div class="toolbar" style="margin-bottom:14px;">
+        <h3 style="font-family:'Space Grotesk',sans-serif; font-size:14px; margin:0;">Vista previa — así lo verá un visitante</h3>
+        <div class="lang-switch mono">${['fr','es','en'].map(l=>`<span class="lang-opt ${l===portafolioPreviewLang?'active':''}" onclick="setPortafolioPreviewLang('${l}')">${l.toUpperCase()}</span>`).join('<span class="lang-sep">/</span>')}</div>
+      </div>
+      <div style="background:var(--bg); padding:20px; border:1px solid var(--border);">${previewHtml}</div>
+    </div>`;
+}
+function proyectoToPublicShape(p){
+  return {
+    nombre: p.nombre, tipo: p.tipo, destacado: p.destacado,
+    fr: {tag:p.publicTag, desc:p.publicDesc, tools:p.publicTools},
+    es: {tag:p.publicTag_es, desc:p.publicDesc_es, tools:p.publicTools_es},
+    en: {tag:p.publicTag_en, desc:p.publicDesc_en, tools:p.publicTools_en}
+  };
+}
+function setPortafolioPreviewLang(l){ portafolioPreviewLang = l; renderPortafolio(); }
+function togglePortafolioPublicable(id, val){
+  const p = DB.proyectos.find(x=>x.id===id);
+  if(p){
+    p.publicable = val;
+    if(val && !p.publicTag) p.publicTag = p.tipo;
+    if(val && !p.publicDesc) p.publicDesc = p.notas||'';
+    if(val && p.ordenPublico===undefined) p.ordenPublico = DB.proyectos.length;
+    saveDB(); renderPortafolio();
+  }
+}
+function togglePortafolioDestacado(id, val){ const p=DB.proyectos.find(x=>x.id===id); if(p){ p.destacado=val; saveDB(); renderPortafolio(); } }
+function setPortafolioOrden(id, val){ const p=DB.proyectos.find(x=>x.id===id); if(p){ p.ordenPublico=parseInt(val)||0; saveDB(); renderPortafolio(); } }
+function togglePortafolioEdit(id){ portafolioEditId = portafolioEditId===id ? null : id; portafolioLang='fr'; renderPortafolio(); }
+function setPortafolioLang(id, lang){ savePortafolioLangFields(id); portafolioLang = lang; renderPortafolio(); }
+function savePortafolioLangFields(id){
+  const p = DB.proyectos.find(x=>x.id===id); if(!p) return;
+  const L = portafolioLang, suf = L==='fr' ? '' : '_'+L;
+  const g = f => { const el = document.getElementById(f+'-'+id); return el ? el.value : undefined; };
+  const tag=g('pf-tag'), tools=g('pf-tools'), desc=g('pf-desc');
+  if(tag!==undefined) p['publicTag'+suf]=tag;
+  if(tools!==undefined) p['publicTools'+suf]=tools;
+  if(desc!==undefined) p['publicDesc'+suf]=desc;
+}
+function savePortafolioAndClose(id){ savePortafolioLangFields(id); saveDB(); portafolioEditId=null; renderPortafolio(); }
+function renderPortafolioEditForm(p){
+  const L = portafolioLang, suf = L==='fr' ? '' : '_'+L;
+  const tag = p['publicTag'+suf]||'', desc = p['publicDesc'+suf]||'', tools = p['publicTools'+suf]||'';
+  return `<tr><td colspan="6"><div class="card" style="margin:8px 0 4px; background:var(--panel-2);">
+    <div class="toolbar" style="margin-bottom:0;">
+      <div class="field-note" style="color:var(--cyan); margin:0;">Contenido público — ${p.nombre}</div>
+      <div class="tabs" style="border-bottom:none; margin-bottom:0;">
+        ${['fr','es','en'].map(l=>`<div class="tab ${l===L?'active':''}" style="padding:4px 10px;" onclick="setPortafolioLang(${p.id},'${l}')">${l.toUpperCase()}</div>`).join('')}
+      </div>
+    </div>
+    <div class="grid" style="margin-top:12px;">
+      <div><label>Tag público (${L.toUpperCase()})</label><input id="pf-tag-${p.id}" value="${tag}"></div>
+      <div style="grid-column:span 2;"><label>Herramientas — separadas por coma (${L.toUpperCase()})</label><input id="pf-tools-${p.id}" value="${tools}"></div>
+    </div>
+    <div style="margin-top:10px;"><label>Descripción pública (${L.toUpperCase()})</label><textarea id="pf-desc-${p.id}" rows="2">${desc}</textarea></div>
+    <div style="margin-top:14px; display:flex; gap:10px;">
+      <button class="btn btn-primary" onclick="savePortafolioAndClose(${p.id})">Guardar cambios</button>
+      <button class="btn" onclick="togglePortafolioEdit(${p.id})">Cancelar</button>
+    </div>
+  </div></td></tr>`;
+}
 
 /* ============================= CLIENTES ============================= */
 function renderClientes(){
@@ -1672,7 +1776,7 @@ function renderSimQuarterly(){
 
 /* expose functions used by inline handlers */
 window.setLang=setLang; window.tryLogin=tryLogin; window.logout=logout; window.addProyecto=addProyecto; window.setProyectoEtapa=setProyectoEtapa; window.toggleEditProyecto=toggleEditProyecto; window.saveEditProyecto=saveEditProyecto; window.setEditProyectoLang=setEditProyectoLang;
-window.toggleProyectoPublico=toggleProyectoPublico; window.deleteItem=deleteItem; window.toggleEdit=toggleEdit; window.saveEditCliente=saveEditCliente; window.saveEditBiblioteca=saveEditBiblioteca;
+window.deleteItem=deleteItem; window.toggleEdit=toggleEdit; window.saveEditCliente=saveEditCliente; window.saveEditBiblioteca=saveEditBiblioteca;
 window.saveEditTiempo=saveEditTiempo; window.saveEditGasto=saveEditGasto; window.saveEditDocumento=saveEditDocumento;
 window.addCliente=addCliente;
 window.addBiblioteca=addBiblioteca; window.addTiempo=addTiempo; window.addGasto=addGasto; window.addDocumento=addDocumento;
@@ -1683,6 +1787,11 @@ window.addTarea=addTarea; window.setTareaEstado=setTareaEstado; window.saveEditT
 window.toggleAddPanel=toggleAddPanel; window.setProyectoTab=setProyectoTab;
 window.addDocumentoProyecto=addDocumentoProyecto;
 window.addPago=addPago; window.setPagoEstado=setPagoEstado; window.saveEditPago=saveEditPago;
+window.setProyectosView=setProyectosView;
+window.togglePortafolioPublicable=togglePortafolioPublicable; window.togglePortafolioDestacado=togglePortafolioDestacado;
+window.setPortafolioOrden=setPortafolioOrden; window.togglePortafolioEdit=togglePortafolioEdit;
+window.setPortafolioLang=setPortafolioLang; window.savePortafolioAndClose=savePortafolioAndClose;
+window.setPortafolioPreviewLang=setPortafolioPreviewLang;
 </script>
 </body>
 </html>
