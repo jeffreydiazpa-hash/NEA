@@ -858,7 +858,7 @@ function buildCRTab(id, crs){
         <div style="grid-column:span 2;"><label>Asistentes</label><input id="cr-asistentes" placeholder="Jeff, cliente, ..."></div>
       </div>
       <div style="margin-top:10px;"><label>Contenido</label><textarea id="cr-contenido" rows="2"></textarea></div>
-      <div style="margin-top:10px;"><label>Acciones a seguir</label><textarea id="cr-acciones" rows="2"></textarea></div>
+      <div style="margin-top:10px;"><label>Acciones a seguir (una por línea — cada línea crea una tarea pendiente)</label><textarea id="cr-acciones" rows="2" placeholder="Enviar devis actualizado&#10;Confirmar fecha de entrega con el cliente"></textarea></div>
       <button class="btn btn-primary" style="margin-top:14px;" onclick="addCR(${id})">+ añadir CR</button>`}
     </div>
     <table>
@@ -1052,10 +1052,14 @@ function stopSession(){
   const p = DB.proyectos.find(x=>x.id===s.proyectoId);
   if(p) p.horasReal = Math.round(((p.horasReal||0)+horas)*100)/100;
   saveDB();
-  // Registro en Google Calendar — no bloquea el flujo si falla (ej. permiso aún no otorgado).
+  // Registro en Google Calendar — guardamos el eventId para poder borrar/actualizar
+  // el evento después si la sesión se edita o se elimina (mismo comportamiento que Projet Manager).
   if(session.token && p){
     gasPost('logSession', {token: session.token, data:{proyecto:p.nombre, inicio:s.inicio, fin:s.fin, nota:s.nota||''}})
-      .then(r=>{ if(!r.ok) console.warn('No se pudo crear el evento de calendario:', r.error); })
+      .then(r=>{
+        if(r.ok){ s.calendarEventId = r.eventId; saveDB(); }
+        else console.warn('No se pudo crear el evento de calendario:', r.error);
+      })
       .catch(()=>{});
   }
   renderProyectoDetalle(s.proyectoId);
@@ -1067,6 +1071,7 @@ function renderEditSesionForm(s){
       <div><label>Fin</label><input type="datetime-local" id="e-fin-${s.id}" value="${s.fin?s.fin.slice(0,16):''}"></div>
     </div>
     <div style="margin-top:10px;"><label>Nota</label><textarea id="e-nota-${s.id}" rows="2">${s.nota||''}</textarea></div>
+    <p class="field-note" style="margin-top:8px;">${s.calendarEventId ? 'El evento de Google Calendar se actualizará con estos cambios.' : 'Esta sesión no tiene evento de Calendar asociado (creada antes de activar la integración, o falló al crearse).'}</p>
     <div style="margin-top:14px; display:flex; gap:10px;">
       <button class="btn btn-primary" onclick="saveEditSesion(${s.id})">Guardar cambios</button>
       <button class="btn" onclick="toggleEdit('sesionesTrabajo',${s.id})">Cancelar</button>
@@ -1081,12 +1086,23 @@ function saveEditSesion(id){
   if(fin) s.fin = new Date(fin).toISOString();
   s.nota = document.getElementById('e-nota-'+id).value;
   editingId.sesionesTrabajo = null; saveDB(); renderProyectoDetalle(s.proyectoId);
+  if(s.calendarEventId && session.token){
+    const p = DB.proyectos.find(x=>x.id===s.proyectoId);
+    gasPost('updateCalendarEvent', {token: session.token, data:{eventId:s.calendarEventId, proyecto:(p?p.nombre:''), inicio:s.inicio, fin:s.fin, nota:s.nota||''}}).catch(()=>{});
+  }
 }
 
 function addCR(proyectoId){
   const contenido = document.getElementById('cr-contenido').value.trim();
   if(!contenido) return alert('Falta el contenido del CR.');
-  DB.comptesRendus.push({id:uid(DB.comptesRendus), proyectoId, fecha:document.getElementById('cr-fecha').value, asistentes:document.getElementById('cr-asistentes').value, contenido, acciones:document.getElementById('cr-acciones').value});
+  const fecha = document.getElementById('cr-fecha').value;
+  const acciones = document.getElementById('cr-acciones').value;
+  DB.comptesRendus.push({id:uid(DB.comptesRendus), proyectoId, fecha, asistentes:document.getElementById('cr-asistentes').value, contenido, acciones});
+  // Cada línea de "acciones a seguir" se convierte automáticamente en una tarea pendiente.
+  const lineas = acciones.split('\n').map(l=>l.trim()).filter(Boolean);
+  lineas.forEach(titulo=>{
+    DB.tareas.push({id:uid(DB.tareas), proyectoId, titulo, responsable:'', estado:'Pendiente', fecha});
+  });
   saveDB(); renderProyectoDetalle(proyectoId);
 }
 function renderEditCRForm(c){
@@ -1097,6 +1113,7 @@ function renderEditCRForm(c){
     </div>
     <div style="margin-top:10px;"><label>Contenido</label><textarea id="e-contenido-${c.id}" rows="2">${c.contenido||''}</textarea></div>
     <div style="margin-top:10px;"><label>Acciones a seguir</label><textarea id="e-acciones-${c.id}" rows="2">${c.acciones||''}</textarea></div>
+    <p class="field-note" style="margin-top:4px;">Editar aquí no crea tareas nuevas — eso solo pasa al añadir el CR por primera vez. Añade tareas nuevas desde la pestaña Tareas si hace falta.</p>
     <div style="margin-top:14px; display:flex; gap:10px;">
       <button class="btn btn-primary" onclick="saveEditCR(${c.id})">Guardar cambios</button>
       <button class="btn" onclick="toggleEdit('comptesRendus',${c.id})">Cancelar</button>
@@ -1152,7 +1169,17 @@ function addProyecto(){
   saveDB(); renderProyectos();
 }
 function setProyectoEtapa(id, etapa){ const p=DB.proyectos.find(x=>x.id===id); if(p){p.etapa=etapa; saveDB(); route();} }
-function deleteItem(coll, id){ if(!confirm('¿Eliminar este registro?')) return; DB[coll] = DB[coll].filter(x=>x.id!==id); saveDB(); route(); }
+function deleteItem(coll, id){
+  if(!confirm('¿Eliminar este registro?')) return;
+  if(coll==='sesionesTrabajo'){
+    const s = DB.sesionesTrabajo.find(x=>x.id===id);
+    if(s && s.calendarEventId && session.token){
+      gasPost('deleteCalendarEvent', {token:session.token, eventId:s.calendarEventId}).catch(()=>{});
+    }
+  }
+  DB[coll] = DB[coll].filter(x=>x.id!==id);
+  saveDB(); route();
+}
 
 /* ============================= PORTAFOLIO (contenido público) ============================= */
 // Módulo dedicado a decidir qué se muestra en el sitio público y cómo — separado
