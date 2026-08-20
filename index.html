@@ -1051,7 +1051,14 @@ function stopSession(){
   DB.tiempo.push({id:uid(DB.tiempo), proyectoId:s.proyectoId, fecha:s.fin.slice(0,10), horas: Math.round(horas*100)/100, tarifa:65, facturable:true});
   const p = DB.proyectos.find(x=>x.id===s.proyectoId);
   if(p) p.horasReal = Math.round(((p.horasReal||0)+horas)*100)/100;
-  saveDB(); renderProyectoDetalle(s.proyectoId);
+  saveDB();
+  // Registro en Google Calendar — no bloquea el flujo si falla (ej. permiso aún no otorgado).
+  if(session.token && p){
+    gasPost('logSession', {token: session.token, data:{proyecto:p.nombre, inicio:s.inicio, fin:s.fin, nota:s.nota||''}})
+      .then(r=>{ if(!r.ok) console.warn('No se pudo crear el evento de calendario:', r.error); })
+      .catch(()=>{});
+  }
+  renderProyectoDetalle(s.proyectoId);
 }
 function renderEditSesionForm(s){
   return `<tr><td colspan="5"><div class="card" style="margin:8px 0 4px; background:var(--panel-2);">
