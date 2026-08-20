@@ -180,7 +180,7 @@ const CONFIG = {
 let DB = {
   proyectos: [], clientes: [], biblioteca: [], tiempo: [], gastos: [], documentos: [],
   sesionesTrabajo: [], comptesRendus: [], tareas: [], pagos: [],
-  fiscal: { avisYear:2025, rfr:0, parts:1, autresRevenus:0, dateAvis:'', cotisationRate:0.256, acre:'no', vlRequested:'no', vlThreshold:29315, tranches:[] }
+  fiscal: { avisYear:2025, rfr:0, parts:1, autresRevenus:0, dateAvis:'', cotisationRate:0.232, acre:'no', vlRequested:'no', vlThreshold:29315, tranches:[] }
 };
 let session = { authed:false, token:null, expiresAt:null, loaded:false };
 
@@ -1630,6 +1630,10 @@ function addDocumento(){
 
 /* ============================= IMPUESTOS (incluye el simulador) ============================= */
 const BAREME = [{min:0,max:11600,rate:0},{min:11600,max:29579,rate:0.11},{min:29579,max:84577,rate:0.30},{min:84577,max:181917,rate:0.41},{min:181917,max:Infinity,rate:0.45}];
+// Umbrales de franquicia en base de TVA 2026 para prestations de services / BNC.
+// Verificar cada año — pueden cambiar con la loi de finances.
+const TVA_SEUIL_BASE = 37500;
+const TVA_SEUIL_MAJORE = 41250;
 const ABATTEMENT = 0.34, VL_RATE = 0.022, PLAFOND_CA = 77700;
 let impuestosTab = 'resumen';
 
@@ -1652,11 +1656,47 @@ function renderImpuestosBody(){
   if(impuestosTab==='simulador') return renderFiscalSimulador(el);
   if(impuestosTab==='calendario') return renderFiscalCalendario(el);
 }
+function caCobradoAnio(year){
+  return DB.pagos
+    .filter(p=>p.estado==='Cobrado' && p.fechaCobro && new Date(p.fechaCobro).getFullYear()===year)
+    .reduce((s,p)=>s+(p.monto||0),0);
+}
+function renderTvaBanner(){
+  const year = new Date().getFullYear();
+  const ca = caCobradoAnio(year);
+  const pct = Math.min(100, (ca/TVA_SEUIL_BASE)*100);
+  let nivel, color, mensaje;
+  if(ca >= TVA_SEUIL_MAJORE){
+    nivel='danger'; color='var(--danger)';
+    mensaje = `Has superado el umbral majoré (${fmt(TVA_SEUIL_MAJORE)}) — la TVA se aplica desde hoy mismo, sin esperar al año siguiente. Consulta con tu plataforma de facturación cómo empezar a repercutirla.`;
+  } else if(ca >= TVA_SEUIL_BASE){
+    nivel='warn'; color='var(--orange)';
+    mensaje = `Has superado el umbral base (${fmt(TVA_SEUIL_BASE)}) pero sigues bajo el majoré (${fmt(TVA_SEUIL_MAJORE)}) — mantienes la franquicia este año, pero desde el 1 de enero de ${year+1} tendrás que facturar TVA.`;
+  } else if(ca >= TVA_SEUIL_BASE*0.8){
+    nivel='watch'; color='var(--orange)';
+    mensaje = `Te estás acercando al umbral de franquicia (${fmt(TVA_SEUIL_BASE)}) — vigila tu CA cobrado de aquí a fin de año.`;
+  } else {
+    nivel='ok'; color='var(--ok)';
+    mensaje = `Bajo el umbral de franquicia — no facturas ni declaras TVA.`;
+  }
+  return `<div class="card" style="border-color:${color};">
+    <div class="toolbar" style="margin-bottom:10px;">
+      <h3 style="font-family:'Space Grotesk',sans-serif; font-size:14px; margin:0;">Franquicia de TVA (${year})</h3>
+      <span class="mono" style="font-size:12px; color:${color};">${fmt(ca)} / ${fmt(TVA_SEUIL_BASE)}</span>
+    </div>
+    <div style="height:6px; background:var(--panel-2); border:1px solid var(--border); position:relative; overflow:hidden;">
+      <div style="height:100%; width:${pct}%; background:${color};"></div>
+    </div>
+    <p class="field-note" style="margin-top:10px; color:var(--text-dim);">${mensaje}</p>
+    <p class="field-note" style="margin-top:6px;">Basado en los tramos de Pagos marcados como "Cobrado" en todos tus proyectos, con fecha de cobro en ${year}. Umbrales 2026 para prestations de services/BNC — verificar cada año, pueden cambiar con la loi de finances.</p>
+  </div>`;
+}
 function renderFiscalResumen(el){
   const f = DB.fiscal;
   const caTotal = f.tranches.reduce((s,t)=>s+t.amount,0);
   const eligible = f.rfr <= f.vlThreshold*f.parts;
   el.innerHTML = `
+    ${renderTvaBanner()}
     <div class="grid" style="margin-bottom:20px;">
       <div class="metric"><div class="lbl">CA acumulado (tramos)</div><div class="val">${fmt(caTotal)}</div></div>
       <div class="metric"><div class="lbl">VL solicitado</div><div class="val" style="font-size:18px;">${f.vlRequested==='si'?'Sí':'No'}</div></div>
@@ -1669,9 +1709,15 @@ function renderFiscalResumen(el){
         <div><label>RFR</label><input id="f-rfr" type="number" value="${f.rfr}" onchange="updateFiscal('rfr',this.value,true)"></div>
         <div><label>Partes fiscales</label><input id="f-parts" type="number" step="0.5" value="${f.parts}" onchange="updateFiscal('parts',this.value,true)"></div>
         <div><label>Otros ingresos (salario neto imponible)</label><input id="f-autres" type="number" value="${f.autresRevenus}" onchange="updateFiscal('autresRevenus',this.value,true)"></div>
+        <div><label>Caja de cotización (código APE 7111Z = CIPAV)</label>
+          <select onchange="updateFiscal('cotisationRate',this.value,true)">
+            <option value="0.256" ${f.cotisationRate===0.256?'selected':''}>No reglamentado — 25,6%</option>
+            <option value="0.232" ${f.cotisationRate===0.232?'selected':''}>CIPAV — 23,2%</option>
+          </select>
+        </div>
         <div><label>¿VL solicitado para el próximo año?</label><select onchange="updateFiscal('vlRequested',this.value,false)"><option value="no" ${f.vlRequested==='no'?'selected':''}>No</option><option value="si" ${f.vlRequested==='si'?'selected':''}>Sí</option></select></div>
       </div>
-      <p class="field-note" style="margin-top:12px;">Estos datos alimentan el simulador. Actualízalos cada vez que recibas un nuevo avis d'impôt.</p>
+      <p class="field-note" style="margin-top:12px;">Estos datos alimentan el simulador. Actualízalos cada vez que recibas un nuevo avis d'impôt. Tu código APE 7111Z (Activités d'architecture) te afilia automáticamente a CIPAV — la caja ya viene marcada por defecto, verifícalo contra tu propio espacio URSSAF si tienes duda.</p>
     </div>`;
 }
 function updateFiscal(field, value, isNumber){
