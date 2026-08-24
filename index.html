@@ -201,7 +201,7 @@ const CONFIG = {
 let DB = {
   proyectos: [], clientes: [], biblioteca: [], tiempo: [], gastos: [], documentos: [],
   sesionesTrabajo: [], comptesRendus: [], tareas: [], pagos: [],
-  identidadCore: {nombre:'', descripcion:''}, divisiones: [], fases: [],
+  identidadCore: {nombre:'', descripcion:''}, divisiones: [], fases: [], puntosFase: [],
   fiscal: { avisYear:2025, rfr:0, parts:1, autresRevenus:0, dateAvis:'', cotisationRate:0.232, acre:'no', vlRequested:'no', vlThreshold:29315, tranches:[] }
 };
 let session = { authed:false, token:null, expiresAt:null, loaded:false };
@@ -413,7 +413,7 @@ function renderPublic(){
     const el = document.getElementById('identity-map-public');
     if(!el) return;
     if(r && r.ok && r.data.core && r.data.core.nombre){
-      el.outerHTML = buildIdentityMap(r.data.core, r.data.divisiones||[], r.data.fases||[]);
+      el.outerHTML = buildIdentityMap(r.data.core, r.data.divisiones||[], [], false);
     } else {
       el.innerHTML = `<div class="empty">Identidad de NEA aún no publicada.</div>`;
     }
@@ -661,10 +661,10 @@ function renderDashboard(){
 /* ============================= PROYECTOS ============================= */
 // Estado de edición por módulo — regla general: toda entrada tiene botón "Editar".
 // Paneles "añadir nuevo" — regla general: cerrados por defecto, se despliegan con un botón.
-let addOpen = {proyectos:false, clientes:false, biblioteca:false, tiempo:false, gastos:false, documentos:false, cr:false, tareas:false, pagos:false, documentosProyecto:false, divisiones:false, fases:false};
+let addOpen = {proyectos:false, clientes:false, biblioteca:false, tiempo:false, gastos:false, documentos:false, cr:false, tareas:false, pagos:false, documentosProyecto:false, divisiones:false, fases:false, puntos:false};
 function toggleAddPanel(key){ addOpen[key] = !addOpen[key]; route(); }
 
-let editingId = {clientes:null, biblioteca:null, tiempo:null, gastos:null, documentos:null, sesionesTrabajo:null, comptesRendus:null, tareas:null, pagos:null, divisiones:null, fases:null, nucleo:false};
+let editingId = {clientes:null, biblioteca:null, tiempo:null, gastos:null, documentos:null, sesionesTrabajo:null, comptesRendus:null, tareas:null, pagos:null, divisiones:null, fases:null, nucleo:false, puntosFase:null};
 function toggleEdit(mod, id){
   editingId[mod] = editingId[mod]===id ? null : id;
   route();
@@ -1257,7 +1257,7 @@ function deleteItem(coll, id){
 
 // Construye el mapa conceptual — se usa tanto en el admin (vista previa en
 // vivo) como en el sitio público (mismos datos, mismo componente).
-function buildIdentityMap(core, divisiones, fases){
+function buildIdentityMap(core, divisiones, fases, showPhases){
   const sorted = [...divisiones].sort((a,b)=>(a.orden||0)-(b.orden||0));
   return `<div class="identity-map">
     <div class="identity-core">
@@ -1267,20 +1267,21 @@ function buildIdentityMap(core, divisiones, fases){
     </div>
     <div class="identity-branches">
       ${sorted.map(d=>{
-        const fasesDiv = fases.filter(f=>f.divisionId===d.id).sort((a,b)=>(a.orden||0)-(b.orden||0));
+        const fasesDiv = showPhases ? fases.filter(f=>f.divisionId===d.id).sort((a,b)=>(a.orden||0)-(b.orden||0)) : [];
         return `<div class="identity-branch">
           <div class="division-card" style="border-color:${d.color||'var(--border)'};">
             <div class="name">${d.nombre}</div>
             <div class="desc">${d.descripcion||''}</div>
           </div>
-          <div class="phase-list">
+          ${showPhases ? `<div class="phase-list">
             ${fasesDiv.map((f,i)=>`
               <div class="phase-item ${f.estado==='Actual'?'phase-actual':''}">
                 <div class="ph-top"><span class="ph-num">Fase ${i+1}</span><span class="pill ${f.estado==='Actual'?'tag-cyan':'tag-dim'}">${f.estado||'Futura'}</span></div>
                 <div class="ph-name">${f.nombre}</div>
+                ${f.fechaObjetivo?`<div class="ph-desc" style="color:var(--cyan);">Objetivo: ${f.fechaObjetivo}</div>`:''}
                 ${f.descripcion?`<div class="ph-desc">${f.descripcion}</div>`:''}
               </div>`).join('') || `<div class="field-note" style="text-align:center;">Sin fases definidas</div>`}
-          </div>
+          </div>` : ''}
         </div>`;
       }).join('') || `<div class="empty">Aún no hay divisiones definidas.</div>`}
     </div>
@@ -1295,7 +1296,7 @@ function renderIdentidad(){
     <h2 class="mod-title">Identidad NEA</h2>
     <p class="mod-desc">El núcleo común y las divisiones de NEA, con sus fases de desarrollo — esto es lo que se publica tal cual en "Sobre NEA" en el sitio público.</p>
 
-    <div class="card">${buildIdentityMap(core, DB.divisiones, DB.fases)}</div>
+    <div class="card">${buildIdentityMap(core, DB.divisiones, DB.fases, true)}</div>
 
     <div class="card">
       <div class="toolbar" style="margin-bottom:0;">
@@ -1383,29 +1384,40 @@ function buildFasesPanel(divisionId, fasesDiv){
       <div style="grid-column:span 2;"><label>Nombre</label><input id="fa-nombre" placeholder="Estudios técnicos, Obra con subcontratistas…"></div>
       <div><label>Estado</label><select id="fa-estado"><option>Actual</option><option>Futura</option><option>Completada</option></select></div>
       <div><label>Orden</label><input id="fa-orden" type="number" value="${fasesDiv.length}"></div>
+      <div><label>Fecha objetivo</label><input type="date" id="fa-fechaObjetivo"></div>
     </div>
     <div style="margin-top:10px;"><label>Descripción</label><textarea id="fa-descripcion" rows="2"></textarea></div>
     <button class="btn btn-primary btn-sm" style="margin-top:12px;" onclick="addFase(${divisionId})">+ añadir fase</button>`}
     <div style="margin-top:12px; display:flex; flex-direction:column; gap:8px;">
       ${fasesDiv.map(f=>{
         const editing = editingId.fases===f.id;
+        const puntos = DB.puntosFase.filter(p=>p.faseId===f.id);
+        const hechos = puntos.filter(p=>p.hecho).length;
         return editing ? `<div class="card" style="background:var(--panel);">
           <div class="grid">
             <div style="grid-column:span 2;"><label>Nombre</label><input id="e-nombre-${f.id}" value="${f.nombre}"></div>
             <div><label>Estado</label><select id="e-estado-${f.id}">${['Actual','Futura','Completada'].map(e=>`<option ${e===f.estado?'selected':''}>${e}</option>`).join('')}</select></div>
             <div><label>Orden</label><input id="e-orden-${f.id}" type="number" value="${f.orden||0}"></div>
+            <div><label>Fecha objetivo</label><input type="date" id="e-fechaObjetivo-${f.id}" value="${f.fechaObjetivo||''}"></div>
           </div>
           <div style="margin-top:10px;"><label>Descripción</label><textarea id="e-descripcion-${f.id}" rows="2">${f.descripcion||''}</textarea></div>
           <div style="margin-top:10px; display:flex; gap:8px;">
             <button class="btn btn-primary btn-sm" onclick="saveEditFase(${f.id})">Guardar</button>
             <button class="btn btn-sm" onclick="toggleEdit('fases',${f.id})">Cancelar</button>
           </div>
-        </div>` : `<div class="card" style="background:var(--panel); display:flex; justify-content:space-between; align-items:center;">
-          <div><b style="font-size:13px;">${f.nombre}</b> <span class="pill ${f.estado==='Actual'?'tag-cyan':'tag-dim'}" style="margin-left:8px;">${f.estado}</span></div>
-          <div style="display:flex; gap:6px;">
-            <button class="btn btn-sm" onclick="toggleEdit('fases',${f.id})">Editar</button>
-            <button class="btn btn-sm btn-danger" onclick="deleteItem('fases',${f.id})">✕</button>
+        </div>` : `<div class="card" style="background:var(--panel);">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <b style="font-size:13px;">${f.nombre}</b> <span class="pill ${f.estado==='Actual'?'tag-cyan':'tag-dim'}" style="margin-left:8px;">${f.estado}</span>
+              ${f.fechaObjetivo?`<span class="field-note" style="margin-left:8px; color:var(--cyan);">objetivo: ${f.fechaObjetivo}</span>`:''}
+            </div>
+            <div style="display:flex; gap:6px;">
+              <button class="btn btn-sm" onclick="toggleEdit('fases',${f.id})">Editar</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteItem('fases',${f.id})">✕</button>
+            </div>
           </div>
+          <button class="btn btn-sm" style="margin-top:10px;" onclick="togglePuntosPanel(${f.id})">${identidadPuntosOpenFor===f.id?'Cerrar puntos':`Puntos (${hechos}/${puntos.length})`}</button>
+          ${identidadPuntosOpenFor===f.id ? buildPuntosPanel(f.id, puntos) : ''}
         </div>`;
       }).join('') || `<p class="field-note">Sin fases todavía.</p>`}
     </div>
@@ -1414,14 +1426,58 @@ function buildFasesPanel(divisionId, fasesDiv){
 function addFase(divisionId){
   const nombre = document.getElementById('fa-nombre').value.trim();
   if(!nombre) return alert('Falta el nombre de la fase.');
-  DB.fases.push({id:uid(DB.fases), divisionId, nombre, descripcion:document.getElementById('fa-descripcion').value, estado:document.getElementById('fa-estado').value, orden:parseInt(document.getElementById('fa-orden').value)||0});
+  DB.fases.push({id:uid(DB.fases), divisionId, nombre, descripcion:document.getElementById('fa-descripcion').value, estado:document.getElementById('fa-estado').value, orden:parseInt(document.getElementById('fa-orden').value)||0, fechaObjetivo:document.getElementById('fa-fechaObjetivo').value});
   saveDB(); renderIdentidad();
 }
 function saveEditFase(id){
   const f = DB.fases.find(x=>x.id===id); if(!f) return;
   const g = k => document.getElementById(k+'-'+id).value;
-  f.nombre=g('e-nombre').trim()||f.nombre; f.estado=g('e-estado'); f.orden=parseInt(g('e-orden'))||0; f.descripcion=g('e-descripcion');
+  f.nombre=g('e-nombre').trim()||f.nombre; f.estado=g('e-estado'); f.orden=parseInt(g('e-orden'))||0; f.descripcion=g('e-descripcion'); f.fechaObjetivo=g('e-fechaObjetivo');
   editingId.fases=null; saveDB(); renderIdentidad();
+}
+
+/* ---- Puntos a implementar para llegar a cada fase ---- */
+let identidadPuntosOpenFor = null;
+function togglePuntosPanel(faseId){ identidadPuntosOpenFor = identidadPuntosOpenFor===faseId ? null : faseId; renderIdentidad(); }
+function buildPuntosPanel(faseId, puntos){
+  return `<div class="card" style="margin-top:10px; background:var(--panel-2);">
+    <div class="toolbar" style="margin-bottom:${addOpen.puntos?'10px':'0'};">
+      <div class="field-note" style="margin:0;">Puntos a poner en marcha para llegar a esta fase</div>
+      <button class="btn btn-sm" onclick="toggleAddPanel('puntos')">${addOpen.puntos?'Cerrar':'+ Punto'}</button>
+    </div>
+    ${!addOpen.puntos ? '' : `
+    <div style="display:flex; gap:8px;">
+      <input id="pt-texto" placeholder="Ej. Contratar el primer independiente para obra" style="flex:1;">
+      <button class="btn btn-primary btn-sm" onclick="addPunto(${faseId})">+ añadir</button>
+    </div>`}
+    <div style="margin-top:10px; display:flex; flex-direction:column; gap:6px;">
+      ${puntos.map(p=>{
+        const editing = editingId.puntosFase===p.id;
+        return editing ? `<div style="display:flex; gap:8px;">
+          <input id="e-texto-${p.id}" value="${p.texto}" style="flex:1;">
+          <button class="btn btn-sm" onclick="savePunto(${p.id})">Guardar</button>
+          <button class="btn btn-sm" onclick="toggleEdit('puntosFase',${p.id})">Cancelar</button>
+        </div>` : `<div style="display:flex; align-items:center; gap:8px;">
+          <input type="checkbox" ${p.hecho?'checked':''} onchange="togglePunto(${p.id}, this.checked)">
+          <span style="flex:1; font-size:12.5px; ${p.hecho?'color:var(--text-faint); text-decoration:line-through;':''}">${p.texto}</span>
+          <button class="btn btn-sm" onclick="toggleEdit('puntosFase',${p.id})">Editar</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteItem('puntosFase',${p.id})">✕</button>
+        </div>`;
+      }).join('') || `<p class="field-note">Sin puntos definidos todavía.</p>`}
+    </div>
+  </div>`;
+}
+function addPunto(faseId){
+  const texto = document.getElementById('pt-texto').value.trim();
+  if(!texto) return;
+  DB.puntosFase.push({id:uid(DB.puntosFase), faseId, texto, hecho:false});
+  saveDB(); renderIdentidad();
+}
+function togglePunto(id, hecho){ const p=DB.puntosFase.find(x=>x.id===id); if(p){ p.hecho=hecho; saveDB(); renderIdentidad(); } }
+function savePunto(id){
+  const p = DB.puntosFase.find(x=>x.id===id); if(!p) return;
+  p.texto = document.getElementById('e-texto-'+id).value.trim()||p.texto;
+  editingId.puntosFase=null; saveDB(); renderIdentidad();
 }
 
 /* ============================= PORTAFOLIO (contenido público) ============================= */
@@ -2155,6 +2211,7 @@ window.setProyectosView=setProyectosView;
 window.togglePortafolioPublicable=togglePortafolioPublicable; window.togglePortafolioDestacado=togglePortafolioDestacado;
 window.toggleEditNucleo=toggleEditNucleo; window.saveNucleo=saveNucleo; window.addDivision=addDivision; window.saveEditDivision=saveEditDivision;
 window.toggleFasesPanel=toggleFasesPanel; window.addFase=addFase; window.saveEditFase=saveEditFase;
+window.togglePuntosPanel=togglePuntosPanel; window.addPunto=addPunto; window.togglePunto=togglePunto; window.savePunto=savePunto;
 window.setPortafolioOrden=setPortafolioOrden; window.togglePortafolioEdit=togglePortafolioEdit;
 window.setPortafolioLang=setPortafolioLang; window.savePortafolioAndClose=savePortafolioAndClose;
 window.setPortafolioPreviewLang=setPortafolioPreviewLang;
