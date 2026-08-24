@@ -43,6 +43,25 @@ label{display:block; font-family:'JetBrains Mono', monospace; font-size:10.5px; 
 .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px;}
 .card-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px;}
 .card-grid .card{margin-bottom:0;}
+.identity-map{display:flex; flex-direction:column; align-items:center; padding:20px 0;}
+.identity-core{border:1px solid var(--cyan); background:rgba(95,216,230,.06); padding:18px 26px; text-align:center; position:relative; max-width:420px;}
+.identity-core .lbl{font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--cyan); text-transform:uppercase; letter-spacing:.08em;}
+.identity-core .name{font-family:'Space Grotesk',sans-serif; font-size:19px; font-weight:600; margin-top:6px;}
+.identity-core .desc{font-size:12.5px; color:var(--text-dim); margin-top:6px;}
+.identity-core::after{content:''; position:absolute; left:50%; bottom:-24px; width:1px; height:24px; background:var(--border); transform:translateX(-50%);}
+.identity-branches{display:flex; gap:22px; flex-wrap:wrap; justify-content:center; margin-top:24px; padding-top:0; position:relative;}
+.identity-branch{width:230px; display:flex; flex-direction:column; align-items:center;}
+.identity-branch::before{content:''; width:1px; height:20px; background:var(--border); margin-bottom:0;}
+.division-card{border:1px solid var(--border-c, var(--border)); background:var(--panel); padding:14px 16px; width:100%; text-align:center;}
+.division-card .name{font-family:'Space Grotesk',sans-serif; font-size:15px; font-weight:600;}
+.division-card .desc{font-size:11.5px; color:var(--text-dim); margin-top:6px; line-height:1.5;}
+.phase-list{width:100%; margin-top:12px; display:flex; flex-direction:column; gap:8px;}
+.phase-item{border:1px solid var(--border); background:var(--panel-2); padding:8px 10px; text-align:left; position:relative;}
+.phase-item.phase-actual{border-color:var(--cyan);}
+.phase-item .ph-top{display:flex; justify-content:space-between; align-items:center;}
+.phase-item .ph-num{font-family:'JetBrains Mono',monospace; font-size:9.5px; color:var(--text-faint); text-transform:uppercase;}
+.phase-item .ph-name{font-size:12.5px; font-weight:600; margin-top:2px;}
+.phase-item .ph-desc{font-size:11px; color:var(--text-dim); margin-top:4px; line-height:1.4;}
 table{width:100%; border-collapse:collapse; font-size:13px;}
 th{text-align:left; font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.04em; padding:8px 8px; border-bottom:1px solid var(--border);}
 td{padding:9px 8px; border-bottom:1px solid var(--grid-line); vertical-align:middle;}
@@ -182,6 +201,7 @@ const CONFIG = {
 let DB = {
   proyectos: [], clientes: [], biblioteca: [], tiempo: [], gastos: [], documentos: [],
   sesionesTrabajo: [], comptesRendus: [], tareas: [], pagos: [],
+  identidadCore: {nombre:'', descripcion:''}, divisiones: [], fases: [],
   fiscal: { avisYear:2025, rfr:0, parts:1, autresRevenus:0, dateAvis:'', cotisationRate:0.232, acre:'no', vlRequested:'no', vlThreshold:29315, tranches:[] }
 };
 let session = { authed:false, token:null, expiresAt:null, loaded:false };
@@ -297,13 +317,14 @@ function logout(){
 let currentLang = 'fr';
 const I18N = {
   fr: {
-    nav:['Projets',"À propos",'Services','Contact'],
+    nav:['Projets',"À propos",'Divisions','Services','Contact'],
     eyebrow:"Bureau d'études · Grasshopper / Rhino",
     h1:"Ingénierie paramétrique pour des projets BTP complexes.",
     lede:"NEA résout la géométrie, la structure et la fabrication numérique pour les bureaux d'études et entreprises qui ont besoin d'algorithmes, pas seulement de plans.",
     ctaPrimary:'Voir les projets', ctaSecondary:'Parlons de votre projet',
     stats:['Définitions GH','Ans de pratique','Itérations par projet'],
     projTitle:'Travaux sélectionnés', projSub:"Chaque pièce part d'une contrainte réelle — structurelle, de fabrication ou environnementale — et aboutit à un algorithme réutilisable.",
+    divTitle:'Trois divisions, un seul cerveau', divSub:"La conception paramétrique irrigue chaque division de NEA, à des étapes de développement différentes.",
     aboutTitle:"Bureau d'études paramétrique",
     aboutP1:"NEA travaille à la frontière entre le design et la logique : nous construisons des systèmes Grasshopper qui traduisent les contraintes de projet — structurelles, environnementales, de fabrication — en géométrie générative, optimisable et documentée.",
     aboutP2:"Nous ne livrons pas une forme finale, nous livrons le système qui la génère. Chaque définition n'est pas seulement un résultat, c'est un outil que l'équipe projet peut continuer à utiliser.",
@@ -322,13 +343,14 @@ const I18N = {
     emptyProj:"Aucun projet n'est encore marqué comme public. Active-les depuis le panneau d'administration."
   },
   es: {
-    nav:['Proyectos','Sobre NEA','Servicios','Contacto'],
+    nav:['Proyectos','Sobre NEA','Divisiones','Servicios','Contacto'],
     eyebrow:"Bureau d'études · Grasshopper / Rhino",
     h1:'Ingeniería paramétrica para proyectos BTP complejos.',
     lede:'NEA resuelve geometría, estructura y fabricación digital para estudios y constructoras que necesitan algoritmos, no solo planos.',
     ctaPrimary:'Ver proyectos', ctaSecondary:'Hablemos de tu proyecto',
     stats:['Definiciones GH','Años de práctica','Iteraciones por proyecto'],
     projTitle:'Trabajo seleccionado', projSub:'Cada pieza parte de una restricción real — estructural, de fabricación o ambiental — y termina en un algoritmo reutilizable.',
+    divTitle:'Tres divisiones, un solo cerebro', divSub:'El diseño paramétrico irriga cada división de NEA, en distintas etapas de desarrollo.',
     aboutTitle:"Bureau d'études paramétrique",
     aboutP1:'NEA trabaja en el límite entre el diseño y la lógica: construimos sistemas en Grasshopper que traducen criterios de proyecto — estructurales, ambientales, de fabricación — en geometría generativa, optimizable y documentada.',
     aboutP2:'No entregamos una forma final, entregamos el sistema que la genera. Cada definición no es solo un resultado, es una herramienta que el equipo de proyecto puede seguir usando.',
@@ -347,13 +369,14 @@ const I18N = {
     emptyProj:'Aún no hay proyectos marcados como publicables. Márcalos desde el panel de administración.'
   },
   en: {
-    nav:['Projects','About NEA','Services','Contact'],
+    nav:['Projects','About NEA','Divisions','Services','Contact'],
     eyebrow:"Bureau d'études · Grasshopper / Rhino",
     h1:'Parametric engineering for complex construction projects.',
     lede:'NEA solves geometry, structure and digital fabrication for architecture and construction firms that need algorithms, not just drawings.',
     ctaPrimary:'View projects', ctaSecondary:"Let's talk about your project",
     stats:['GH definitions','Years of practice','Iterations per project'],
     projTitle:'Selected work', projSub:'Each piece starts from a real constraint — structural, fabrication-related or environmental — and ends as a reusable algorithm.',
+    divTitle:'Three divisions, one brain', divSub:'Parametric design runs through every NEA division, each at its own stage of development.',
     aboutTitle:'Parametric design office',
     aboutP1:"NEA works at the edge of design and logic: we build Grasshopper systems that translate project constraints — structural, environmental, fabrication-related — into generative, optimisable and documented geometry.",
     aboutP2:"We don't deliver a final shape, we deliver the system that generates it. Every definition isn't just a result, it's a tool the project team can keep using.",
@@ -386,6 +409,18 @@ function renderPublic(){
     const el = document.getElementById('proj-grid-public');
     if(el) el.innerHTML = `<div class="empty" style="grid-column:1/-1;">${t.loadError}</div>`;
   });
+  gasGet('publicIdentity').then(r=>{
+    const el = document.getElementById('identity-map-public');
+    if(!el) return;
+    if(r && r.ok && r.data.core && r.data.core.nombre){
+      el.outerHTML = buildIdentityMap(r.data.core, r.data.divisiones||[], r.data.fases||[]);
+    } else {
+      el.innerHTML = `<div class="empty">Identidad de NEA aún no publicada.</div>`;
+    }
+  }).catch(()=>{
+    const el = document.getElementById('identity-map-public');
+    if(el) el.innerHTML = `<div class="empty">${t.loadError}</div>`;
+  });
 }
 function buildPublicProjGrid(publicables, t){
   return `<div class="proj-grid" id="proj-grid-public">${publicables.length ? publicables.map(p=>{
@@ -411,8 +446,9 @@ function renderPublicShell(t){
       <div class="navlinks">
         <a href="#proyectos-pub"><span class="mono" style="color:var(--text-faint); margin-right:5px;">01</span>${t.nav[0]}</a>
         <a href="#sobre-pub"><span class="mono" style="color:var(--text-faint); margin-right:5px;">02</span>${t.nav[1]}</a>
-        <a href="#servicios-pub"><span class="mono" style="color:var(--text-faint); margin-right:5px;">03</span>${t.nav[2]}</a>
-        <a href="#contacto-pub"><span class="mono" style="color:var(--text-faint); margin-right:5px;">04</span>${t.nav[3]}</a>
+        <a href="#divisiones-pub"><span class="mono" style="color:var(--text-faint); margin-right:5px;">03</span>${t.nav[2]}</a>
+        <a href="#servicios-pub"><span class="mono" style="color:var(--text-faint); margin-right:5px;">04</span>${t.nav[3]}</a>
+        <a href="#contacto-pub"><span class="mono" style="color:var(--text-faint); margin-right:5px;">05</span>${t.nav[4]}</a>
       </div>
       <div style="display:flex; align-items:center; gap:14px;">
         <div class="lang-switch mono">
@@ -508,9 +544,17 @@ function renderPublicShell(t){
       </div>
     </section>
 
+    <section class="block hairline wrap" id="divisiones-pub">
+      <div class="sec-head">
+        <div><div class="sec-num mono">03 / ${t.nav[2]}</div><div class="sec-title">${t.divTitle||t.nav[2]}</div></div>
+        <div class="sec-sub">${t.divSub||''}</div>
+      </div>
+      <div id="identity-map-public"><div class="empty">${t.loading}</div></div>
+    </section>
+
     <section class="block hairline wrap" id="servicios-pub">
       <div class="sec-head">
-        <div><div class="sec-num mono">03 / ${t.nav[2]}</div><div class="sec-title">${t.servTitle}</div></div>
+        <div><div class="sec-num mono">04 / ${t.nav[3]}</div><div class="sec-title">${t.servTitle}</div></div>
         <div class="sec-sub">${t.servSub}</div>
       </div>
     </section>
@@ -521,7 +565,7 @@ function renderPublicShell(t){
     <section class="block wrap" id="contacto-pub">
       <div class="contact-grid">
         <div>
-          <div class="sec-num mono">04 / ${t.nav[3]}</div>
+          <div class="sec-num mono">05 / ${t.nav[4]}</div>
           <div class="contact-title" style="margin-top:12px;">${t.contactTitle}</div>
           <a href="mailto:contact@nea-etudes.fr" class="contact-email">contact@nea-etudes.fr</a>
         </div>
@@ -542,6 +586,7 @@ function renderPublicShell(t){
 
 /* ============================= ADMIN SHELL ============================= */
 const MODULES = [
+  {key:'identidad', label:'Identidad NEA', idx:'00'},
   {key:'dashboard', label:'Dashboard', idx:'01'},
   {key:'proyectos', label:'Proyectos', idx:'02'},
   {key:'portafolio', label:'Portafolio', idx:'03'},
@@ -576,7 +621,7 @@ function renderAdmin(subpath){
         <div id="module-root"></div>
       </div>
     </div>`;
-  const renderers = {dashboard:renderDashboard, proyectos:renderProyectos, portafolio:renderPortafolio, clientes:renderClientes, biblioteca:renderBiblioteca, tiempo:renderTiempo, finanzas:renderFinanzas, impuestos:renderImpuestos, documentos:renderDocumentos};
+  const renderers = {identidad:renderIdentidad, dashboard:renderDashboard, proyectos:renderProyectos, portafolio:renderPortafolio, clientes:renderClientes, biblioteca:renderBiblioteca, tiempo:renderTiempo, finanzas:renderFinanzas, impuestos:renderImpuestos, documentos:renderDocumentos};
   (renderers[modKey]||renderDashboard)(parts.slice(1));
 }
 function root(){ return document.getElementById('module-root'); }
@@ -616,10 +661,10 @@ function renderDashboard(){
 /* ============================= PROYECTOS ============================= */
 // Estado de edición por módulo — regla general: toda entrada tiene botón "Editar".
 // Paneles "añadir nuevo" — regla general: cerrados por defecto, se despliegan con un botón.
-let addOpen = {proyectos:false, clientes:false, biblioteca:false, tiempo:false, gastos:false, documentos:false, cr:false, tareas:false, pagos:false, documentosProyecto:false};
+let addOpen = {proyectos:false, clientes:false, biblioteca:false, tiempo:false, gastos:false, documentos:false, cr:false, tareas:false, pagos:false, documentosProyecto:false, divisiones:false, fases:false};
 function toggleAddPanel(key){ addOpen[key] = !addOpen[key]; route(); }
 
-let editingId = {clientes:null, biblioteca:null, tiempo:null, gastos:null, documentos:null, sesionesTrabajo:null, comptesRendus:null, tareas:null, pagos:null};
+let editingId = {clientes:null, biblioteca:null, tiempo:null, gastos:null, documentos:null, sesionesTrabajo:null, comptesRendus:null, tareas:null, pagos:null, divisiones:null, fases:null, nucleo:false};
 function toggleEdit(mod, id){
   editingId[mod] = editingId[mod]===id ? null : id;
   route();
@@ -1202,6 +1247,181 @@ function deleteItem(coll, id){
   }
   DB[coll] = DB[coll].filter(x=>x.id!==id);
   saveDB(); route();
+}
+
+/* ============================= IDENTIDAD NEA ============================= */
+// Núcleo común (BE Grasshopper) + divisiones + fases por división. Todo lo que
+// se define aquí se publica tal cual en el sitio público — no hay campo
+// "publicable" para esto, a diferencia de Portafolio: es la identidad de la
+// empresa, no un contenido curado proyecto por proyecto.
+
+// Construye el mapa conceptual — se usa tanto en el admin (vista previa en
+// vivo) como en el sitio público (mismos datos, mismo componente).
+function buildIdentityMap(core, divisiones, fases){
+  const sorted = [...divisiones].sort((a,b)=>(a.orden||0)-(b.orden||0));
+  return `<div class="identity-map">
+    <div class="identity-core">
+      <div class="lbl">Núcleo común</div>
+      <div class="name">${core.nombre||'NEA'}</div>
+      <div class="desc">${core.descripcion||''}</div>
+    </div>
+    <div class="identity-branches">
+      ${sorted.map(d=>{
+        const fasesDiv = fases.filter(f=>f.divisionId===d.id).sort((a,b)=>(a.orden||0)-(b.orden||0));
+        return `<div class="identity-branch">
+          <div class="division-card" style="border-color:${d.color||'var(--border)'};">
+            <div class="name">${d.nombre}</div>
+            <div class="desc">${d.descripcion||''}</div>
+          </div>
+          <div class="phase-list">
+            ${fasesDiv.map((f,i)=>`
+              <div class="phase-item ${f.estado==='Actual'?'phase-actual':''}">
+                <div class="ph-top"><span class="ph-num">Fase ${i+1}</span><span class="pill ${f.estado==='Actual'?'tag-cyan':'tag-dim'}">${f.estado||'Futura'}</span></div>
+                <div class="ph-name">${f.nombre}</div>
+                ${f.descripcion?`<div class="ph-desc">${f.descripcion}</div>`:''}
+              </div>`).join('') || `<div class="field-note" style="text-align:center;">Sin fases definidas</div>`}
+          </div>
+        </div>`;
+      }).join('') || `<div class="empty">Aún no hay divisiones definidas.</div>`}
+    </div>
+  </div>`;
+}
+
+let identidadFasesOpenFor = null;
+
+function renderIdentidad(){
+  const core = DB.identidadCore || {nombre:'', descripcion:''};
+  root().innerHTML = `
+    <h2 class="mod-title">Identidad NEA</h2>
+    <p class="mod-desc">El núcleo común y las divisiones de NEA, con sus fases de desarrollo — esto es lo que se publica tal cual en "Sobre NEA" en el sitio público.</p>
+
+    <div class="card">${buildIdentityMap(core, DB.divisiones, DB.fases)}</div>
+
+    <div class="card">
+      <div class="toolbar" style="margin-bottom:0;">
+        <h3 style="font-family:'Space Grotesk',sans-serif; font-size:14px; margin:0;">Núcleo común (el "cerebro")</h3>
+        <button class="btn btn-sm" onclick="toggleEditNucleo()">${editingId.nucleo?'Cerrar':'Editar'}</button>
+      </div>
+      ${editingId.nucleo ? `
+        <div class="grid" style="margin-top:14px;">
+          <div><label>Nombre</label><input id="nu-nombre" value="${core.nombre||''}"></div>
+          <div style="grid-column:span 2;"><label>Descripción</label><input id="nu-descripcion" value="${core.descripcion||''}" placeholder="El skill que alimenta las 3 divisiones — ej. diseño paramétrico en Grasshopper"></div>
+        </div>
+        <button class="btn btn-primary btn-sm" style="margin-top:14px;" onclick="saveNucleo()">Guardar</button>
+      ` : `<p class="field-note" style="margin-top:10px;">${core.descripcion||'Sin descripción todavía.'}</p>`}
+    </div>
+
+    <div class="card">
+      <div class="toolbar" style="margin-bottom:${addOpen.divisiones?'14px':'0'};">
+        <h3 style="font-family:'Space Grotesk',sans-serif; font-size:14px; margin:0;">Nueva división</h3>
+        <button class="btn btn-sm" onclick="toggleAddPanel('divisiones')">${addOpen.divisiones?'Cerrar':'+ Nueva'}</button>
+      </div>
+      ${!addOpen.divisiones ? '' : `
+      <div class="grid">
+        <div><label>Nombre</label><input id="dv-nombre" placeholder="NEA BTP, NEA Espaces, NEA Deco…"></div>
+        <div><label>Color de acento</label><input id="dv-color" type="color" value="#5fd8e6"></div>
+        <div><label>Orden</label><input id="dv-orden" type="number" value="${DB.divisiones.length}"></div>
+      </div>
+      <div style="margin-top:10px;"><label>Descripción</label><textarea id="dv-descripcion" rows="2" placeholder="Qué hace esta división"></textarea></div>
+      <button class="btn btn-primary" style="margin-top:14px;" onclick="addDivision()">+ añadir división</button>`}
+    </div>
+
+    <div class="card-grid">${[...DB.divisiones].sort((a,b)=>(a.orden||0)-(b.orden||0)).map(d=>{
+      const editing = editingId.divisiones===d.id;
+      const fasesDiv = DB.fases.filter(f=>f.divisionId===d.id).sort((a,b)=>(a.orden||0)-(b.orden||0));
+      return `<div class="card" style="border-color:${d.color||'var(--border)'};">
+        ${editing ? `
+          <div class="grid">
+            <div><label>Nombre</label><input id="e-nombre-${d.id}" value="${d.nombre}"></div>
+            <div><label>Color</label><input id="e-color-${d.id}" type="color" value="${d.color||'#5fd8e6'}"></div>
+            <div><label>Orden</label><input id="e-orden-${d.id}" type="number" value="${d.orden||0}"></div>
+          </div>
+          <div style="margin-top:10px;"><label>Descripción</label><textarea id="e-descripcion-${d.id}" rows="2">${d.descripcion||''}</textarea></div>
+          <div style="margin-top:14px; display:flex; gap:10px;">
+            <button class="btn btn-primary btn-sm" onclick="saveEditDivision(${d.id})">Guardar</button>
+            <button class="btn btn-sm" onclick="toggleEdit('divisiones',${d.id})">Cancelar</button>
+          </div>` : `
+          <div class="display" style="font-size:16px; font-weight:600;">${d.nombre}</div>
+          <div class="field-note" style="margin-top:6px; min-height:32px;">${d.descripcion||'sin descripción'}</div>
+          <div class="field-note" style="margin-top:10px; color:var(--text-faint);">${fasesDiv.length} fase${fasesDiv.length===1?'':'s'} definida${fasesDiv.length===1?'':'s'}</div>
+          <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn btn-sm" onclick="toggleEdit('divisiones',${d.id})">Editar</button>
+            <button class="btn btn-sm" onclick="toggleFasesPanel(${d.id})">${identidadFasesOpenFor===d.id?'Cerrar fases':'Gestionar fases'}</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteItem('divisiones',${d.id})">✕</button>
+          </div>
+          ${identidadFasesOpenFor===d.id ? buildFasesPanel(d.id, fasesDiv) : ''}`}
+      </div>`;
+    }).join('') || `<div class="empty">Sin divisiones — añade la primera arriba.</div>`}
+    </div>`;
+}
+function toggleEditNucleo(){ editingId.nucleo = !editingId.nucleo; renderIdentidad(); }
+function saveNucleo(){
+  DB.identidadCore = {nombre: document.getElementById('nu-nombre').value.trim(), descripcion: document.getElementById('nu-descripcion').value};
+  editingId.nucleo = false; saveDB(); renderIdentidad();
+}
+function addDivision(){
+  const nombre = document.getElementById('dv-nombre').value.trim();
+  if(!nombre) return alert('Falta el nombre de la división.');
+  DB.divisiones.push({id:uid(DB.divisiones), nombre, descripcion:document.getElementById('dv-descripcion').value, color:document.getElementById('dv-color').value, orden:parseInt(document.getElementById('dv-orden').value)||0});
+  saveDB(); renderIdentidad();
+}
+function saveEditDivision(id){
+  const d = DB.divisiones.find(x=>x.id===id); if(!d) return;
+  const g = f => document.getElementById(f+'-'+id).value;
+  d.nombre=g('e-nombre').trim()||d.nombre; d.color=g('e-color'); d.orden=parseInt(g('e-orden'))||0; d.descripcion=g('e-descripcion');
+  editingId.divisiones=null; saveDB(); renderIdentidad();
+}
+function toggleFasesPanel(divisionId){ identidadFasesOpenFor = identidadFasesOpenFor===divisionId ? null : divisionId; renderIdentidad(); }
+function buildFasesPanel(divisionId, fasesDiv){
+  return `<div class="card" style="margin-top:12px; background:var(--panel-2);">
+    <div class="toolbar" style="margin-bottom:${addOpen.fases?'12px':'0'};">
+      <div class="field-note" style="color:var(--cyan); margin:0;">Fases de esta división</div>
+      <button class="btn btn-sm" onclick="toggleAddPanel('fases')">${addOpen.fases?'Cerrar':'+ Nueva fase'}</button>
+    </div>
+    ${!addOpen.fases ? '' : `
+    <div class="grid">
+      <div style="grid-column:span 2;"><label>Nombre</label><input id="fa-nombre" placeholder="Estudios técnicos, Obra con subcontratistas…"></div>
+      <div><label>Estado</label><select id="fa-estado"><option>Actual</option><option>Futura</option><option>Completada</option></select></div>
+      <div><label>Orden</label><input id="fa-orden" type="number" value="${fasesDiv.length}"></div>
+    </div>
+    <div style="margin-top:10px;"><label>Descripción</label><textarea id="fa-descripcion" rows="2"></textarea></div>
+    <button class="btn btn-primary btn-sm" style="margin-top:12px;" onclick="addFase(${divisionId})">+ añadir fase</button>`}
+    <div style="margin-top:12px; display:flex; flex-direction:column; gap:8px;">
+      ${fasesDiv.map(f=>{
+        const editing = editingId.fases===f.id;
+        return editing ? `<div class="card" style="background:var(--panel);">
+          <div class="grid">
+            <div style="grid-column:span 2;"><label>Nombre</label><input id="e-nombre-${f.id}" value="${f.nombre}"></div>
+            <div><label>Estado</label><select id="e-estado-${f.id}">${['Actual','Futura','Completada'].map(e=>`<option ${e===f.estado?'selected':''}>${e}</option>`).join('')}</select></div>
+            <div><label>Orden</label><input id="e-orden-${f.id}" type="number" value="${f.orden||0}"></div>
+          </div>
+          <div style="margin-top:10px;"><label>Descripción</label><textarea id="e-descripcion-${f.id}" rows="2">${f.descripcion||''}</textarea></div>
+          <div style="margin-top:10px; display:flex; gap:8px;">
+            <button class="btn btn-primary btn-sm" onclick="saveEditFase(${f.id})">Guardar</button>
+            <button class="btn btn-sm" onclick="toggleEdit('fases',${f.id})">Cancelar</button>
+          </div>
+        </div>` : `<div class="card" style="background:var(--panel); display:flex; justify-content:space-between; align-items:center;">
+          <div><b style="font-size:13px;">${f.nombre}</b> <span class="pill ${f.estado==='Actual'?'tag-cyan':'tag-dim'}" style="margin-left:8px;">${f.estado}</span></div>
+          <div style="display:flex; gap:6px;">
+            <button class="btn btn-sm" onclick="toggleEdit('fases',${f.id})">Editar</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteItem('fases',${f.id})">✕</button>
+          </div>
+        </div>`;
+      }).join('') || `<p class="field-note">Sin fases todavía.</p>`}
+    </div>
+  </div>`;
+}
+function addFase(divisionId){
+  const nombre = document.getElementById('fa-nombre').value.trim();
+  if(!nombre) return alert('Falta el nombre de la fase.');
+  DB.fases.push({id:uid(DB.fases), divisionId, nombre, descripcion:document.getElementById('fa-descripcion').value, estado:document.getElementById('fa-estado').value, orden:parseInt(document.getElementById('fa-orden').value)||0});
+  saveDB(); renderIdentidad();
+}
+function saveEditFase(id){
+  const f = DB.fases.find(x=>x.id===id); if(!f) return;
+  const g = k => document.getElementById(k+'-'+id).value;
+  f.nombre=g('e-nombre').trim()||f.nombre; f.estado=g('e-estado'); f.orden=parseInt(g('e-orden'))||0; f.descripcion=g('e-descripcion');
+  editingId.fases=null; saveDB(); renderIdentidad();
 }
 
 /* ============================= PORTAFOLIO (contenido público) ============================= */
@@ -1933,6 +2153,8 @@ window.addDocumentoProyecto=addDocumentoProyecto;
 window.addPago=addPago; window.setPagoEstado=setPagoEstado; window.saveEditPago=saveEditPago;
 window.setProyectosView=setProyectosView;
 window.togglePortafolioPublicable=togglePortafolioPublicable; window.togglePortafolioDestacado=togglePortafolioDestacado;
+window.toggleEditNucleo=toggleEditNucleo; window.saveNucleo=saveNucleo; window.addDivision=addDivision; window.saveEditDivision=saveEditDivision;
+window.toggleFasesPanel=toggleFasesPanel; window.addFase=addFase; window.saveEditFase=saveEditFase;
 window.setPortafolioOrden=setPortafolioOrden; window.togglePortafolioEdit=togglePortafolioEdit;
 window.setPortafolioLang=setPortafolioLang; window.savePortafolioAndClose=savePortafolioAndClose;
 window.setPortafolioPreviewLang=setPortafolioPreviewLang;
