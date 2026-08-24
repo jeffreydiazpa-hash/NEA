@@ -41,6 +41,8 @@ label{display:block; font-family:'JetBrains Mono', monospace; font-size:10.5px; 
 .field-note{font-size:11.5px; color:var(--text-faint); margin-top:4px; line-height:1.4;}
 .card{background:var(--panel); border:1px solid var(--border); padding:20px; margin-bottom:16px;}
 .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px;}
+.card-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px;}
+.card-grid .card{margin-bottom:0;}
 table{width:100%; border-collapse:collapse; font-size:13px;}
 th{text-align:left; font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.04em; padding:8px 8px; border-bottom:1px solid var(--border);}
 td{padding:9px 8px; border-bottom:1px solid var(--grid-line); vertical-align:middle;}
@@ -796,17 +798,19 @@ function renderProyectoDetalle(id){
 /* ---- Pestaña Resumen ---- */
 function buildResumenTab(p, tareas, pagos){
   const avance = p.horasEst ? Math.min(100, Math.round((p.horasReal||0)/p.horasEst*100)) : null;
-  const rentabilidad = p.honorarios - (p.horasReal||0)*65;
+  const tarifaEfectiva = (p.horasReal||0) > 0 ? p.honorarios / p.horasReal : null;
+  const OBJETIVO_HORA = 65;
   const pendientes = tareas.filter(t=>t.estado!=='Hecho');
   const proxima = pendientes.filter(t=>t.fecha).sort((a,b)=>new Date(a.fecha)-new Date(b.fecha))[0];
   const totalCobrado = pagos.filter(pg=>pg.estado==='Cobrado').reduce((s,pg)=>s+(pg.monto||0),0);
   return `
     <div class="grid" style="margin-bottom:16px;">
       <div class="metric"><div class="lbl">Avance (horas)</div><div class="val">${avance!==null?avance+'%':'—'}</div></div>
-      <div class="metric"><div class="lbl">Rentabilidad estimada</div><div class="val" style="color:${rentabilidad>=0?'var(--ok)':'var(--danger)'}">${fmt(rentabilidad)}</div></div>
+      <div class="metric"><div class="lbl">Tarifa horaria efectiva</div><div class="val" style="color:${tarifaEfectiva===null?'var(--text)':(tarifaEfectiva>=OBJETIVO_HORA?'var(--ok)':'var(--orange)')}">${tarifaEfectiva===null?'—':fmt(tarifaEfectiva)+'/h'}</div></div>
       <div class="metric"><div class="lbl">Tareas pendientes</div><div class="val">${pendientes.length}</div></div>
       <div class="metric"><div class="lbl">Cobrado / honorarios</div><div class="val">${fmt(totalCobrado)} / ${fmt(p.honorarios)}</div></div>
     </div>
+    ${tarifaEfectiva!==null ? `<p class="field-note" style="margin-bottom:16px;">Es el precio fijo del proyecto (${fmt(p.honorarios)}) repartido entre las horas que realmente le has dedicado — cuánto estás ganando por hora en este proyecto, comparado con tu objetivo de ${fmt(OBJETIVO_HORA)}/h. No es un descuento sobre tus honorarios, solo mide si el proyecto te está rindiendo lo que esperabas por tu tiempo.</p>` : ''}
     ${proxima? `<div class="card" style="border-color:var(--orange); background:rgba(255,122,61,.06); margin-bottom:16px;">Próximo vencimiento: <b style="color:var(--text)">${proxima.titulo}</b> — ${proxima.fecha}</div>` : ''}
     <div class="card">
       <div class="toolbar" style="margin-bottom:0;">
@@ -849,27 +853,28 @@ function buildCRTab(id, crs){
   return `
     <div class="card">
       <div class="toolbar" style="margin-bottom:${addOpen.cr?'14px':'0'};">
-        <h3 style="font-family:'Space Grotesk',sans-serif; font-size:14px; margin:0;">Nuevo CR</h3>
-        <button class="btn btn-sm" onclick="toggleAddPanel('cr')">${addOpen.cr?'Cerrar':'+ Nuevo'}</button>
+        <h3 style="font-family:'Space Grotesk',sans-serif; font-size:14px; margin:0;">Nueva reunión / CR</h3>
+        <button class="btn btn-sm" onclick="toggleAddPanel('cr')">${addOpen.cr?'Cerrar':'+ Nueva'}</button>
       </div>
       ${!addOpen.cr ? '' : `
       <div class="grid">
         <div><label>Fecha</label><input type="date" id="cr-fecha"></div>
+        <div><label>Hora (opcional — crea evento en Calendar)</label><input type="time" id="cr-hora"></div>
         <div style="grid-column:span 2;"><label>Asistentes</label><input id="cr-asistentes" placeholder="Jeff, cliente, ..."></div>
       </div>
       <div style="margin-top:10px;"><label>Contenido</label><textarea id="cr-contenido" rows="2"></textarea></div>
       <div style="margin-top:10px;"><label>Acciones a seguir (una por línea — cada línea crea una tarea pendiente)</label><textarea id="cr-acciones" rows="2" placeholder="Enviar devis actualizado&#10;Confirmar fecha de entrega con el cliente"></textarea></div>
-      <button class="btn btn-primary" style="margin-top:14px;" onclick="addCR(${id})">+ añadir CR</button>`}
+      <button class="btn btn-primary" style="margin-top:14px;" onclick="addCR(${id})">+ añadir reunión</button>`}
     </div>
     <table>
       <thead><tr><th>Fecha</th><th>Asistentes</th><th>Contenido</th><th>Acciones</th><th></th></tr></thead>
       <tbody>${crs.map(c=>`
-        <tr><td>${c.fecha}</td><td>${c.asistentes}</td><td style="max-width:220px;">${c.contenido}</td><td style="max-width:200px;">${c.acciones||'—'}</td>
+        <tr><td>${c.fecha}${c.hora?' '+c.hora:''}</td><td>${c.asistentes}</td><td style="max-width:220px;">${c.contenido}</td><td style="max-width:200px;">${c.acciones||'—'}</td>
         <td style="white-space:nowrap;">
           <button class="btn btn-sm" onclick="toggleEdit('comptesRendus',${c.id})">${editingId.comptesRendus===c.id?'Cerrar':'Editar'}</button>
           <button class="btn btn-sm btn-danger" onclick="deleteItem('comptesRendus',${c.id})">✕</button>
         </td></tr>
-        ${editingId.comptesRendus===c.id ? renderEditCRForm(c) : ''}`).join('') || `<tr><td colspan="5" class="empty">Sin CR registrados.</td></tr>`}
+        ${editingId.comptesRendus===c.id ? renderEditCRForm(c) : ''}`).join('') || `<tr><td colspan="5" class="empty">Sin reuniones registradas.</td></tr>`}
       </tbody>
     </table>`;
 }
@@ -884,24 +889,23 @@ function buildTareasTab(id, tareas){
       </div>
       ${!addOpen.tareas ? '' : `
       <div class="grid">
-        <div><label>Título</label><input id="tk-titulo"></div>
-        <div><label>Responsable</label><input id="tk-responsable"></div>
+        <div style="grid-column:span 2;"><label>Título</label><input id="tk-titulo"></div>
         <div><label>Estado</label><select id="tk-estado"><option>Pendiente</option><option>En curso</option><option>Hecho</option></select></div>
         <div><label>Fecha límite</label><input type="date" id="tk-fecha"></div>
       </div>
       <button class="btn btn-primary" style="margin-top:14px;" onclick="addTarea(${id})">+ añadir tarea</button>`}
     </div>
     <table>
-      <thead><tr><th>Título</th><th>Responsable</th><th>Estado</th><th>Fecha</th><th></th></tr></thead>
+      <thead><tr><th>Título</th><th>Estado</th><th>Fecha</th><th></th></tr></thead>
       <tbody>${tareas.map(t=>`
-        <tr><td>${t.titulo}</td><td>${t.responsable||'—'}</td>
+        <tr><td>${t.titulo}</td>
         <td><select onchange="setTareaEstado(${t.id}, this.value)">${['Pendiente','En curso','Hecho'].map(e=>`<option ${e===t.estado?'selected':''}>${e}</option>`).join('')}</select></td>
         <td>${t.fecha||'—'}</td>
         <td style="white-space:nowrap;">
           <button class="btn btn-sm" onclick="toggleEdit('tareas',${t.id})">${editingId.tareas===t.id?'Cerrar':'Editar'}</button>
           <button class="btn btn-sm btn-danger" onclick="deleteItem('tareas',${t.id})">✕</button>
         </td></tr>
-        ${editingId.tareas===t.id ? renderEditTareaForm(t) : ''}`).join('') || `<tr><td colspan="5" class="empty">Sin tareas registradas.</td></tr>`}
+        ${editingId.tareas===t.id ? renderEditTareaForm(t) : ''}`).join('') || `<tr><td colspan="4" class="empty">Sin tareas registradas.</td></tr>`}
       </tbody>
     </table>`;
 }
@@ -917,29 +921,35 @@ function buildDocumentosTab(id, documentos){
       ${!addOpen.documentosProyecto ? '' : `
       <div class="grid">
         <div><label>Nombre</label><input id="dp-nombre"></div>
-        <div><label>Tipo</label><input id="dp-tipo" placeholder="Devis, informe, plano…"></div>
+        <div><label>Tipo (crea/usa la subcarpeta con este nombre)</label><input id="dp-tipo" placeholder="Devis, Facturas, Planos…"></div>
         <div><label>Fecha</label><input type="date" id="dp-fecha"></div>
       </div>
-      <button class="btn btn-primary" style="margin-top:14px;" onclick="addDocumentoProyecto(${id})">+ registrar documento</button>`}
+      <div style="margin-top:10px;"><label>Archivo (opcional)</label><input type="file" id="dp-file"></div>
+      <button class="btn btn-primary" style="margin-top:14px;" id="dp-submit-btn" onclick="addDocumentoProyecto(${id})">+ registrar documento</button>`}
     </div>
     <table>
-      <thead><tr><th>Nombre</th><th>Proyecto</th><th>Tipo</th><th>Fecha</th><th></th></tr></thead>
-      <tbody>${documentos.map(d=>{
-        const p2 = DB.proyectos.find(x=>x.id===d.proyectoId);
-        return `<tr><td>${d.nombre}</td><td>${p2?p2.nombre:'—'}</td><td>${d.tipo||'—'}</td><td>${d.fecha||'—'}</td>
+      <thead><tr><th>Nombre</th><th>Tipo</th><th>Fecha</th><th>Archivo</th><th></th></tr></thead>
+      <tbody>${documentos.map(d=>`
+        <tr><td>${d.nombre}</td><td>${d.tipo||'—'}</td><td>${d.fecha||'—'}</td>
+        <td>${d.driveUrl?`<a href="${d.driveUrl}" target="_blank" style="color:var(--cyan);">Abrir</a>`:'—'}</td>
         <td style="white-space:nowrap;">
           <button class="btn btn-sm" onclick="toggleEdit('documentos',${d.id})">${editingId.documentos===d.id?'Cerrar':'Editar'}</button>
           <button class="btn btn-sm btn-danger" onclick="deleteItem('documentos',${d.id})">✕</button>
         </td></tr>
-        ${editingId.documentos===d.id ? renderEditDocumentoForm(d) : ''}`;
-      }).join('') || `<tr><td colspan="5" class="empty">Sin documentos para este proyecto.</td></tr>`}
+        ${editingId.documentos===d.id ? renderEditDocumentoForm(d) : ''}`).join('') || `<tr><td colspan="5" class="empty">Sin documentos para este proyecto.</td></tr>`}
       </tbody>
     </table>`;
 }
-function addDocumentoProyecto(proyectoId){
+async function addDocumentoProyecto(proyectoId){
   const nombre = document.getElementById('dp-nombre').value.trim();
   if(!nombre) return alert('Falta el nombre del documento.');
-  DB.documentos.push({id:uid(DB.documentos), nombre, proyectoId, tipo:document.getElementById('dp-tipo').value, fecha:document.getElementById('dp-fecha').value});
+  const tipo = document.getElementById('dp-tipo').value;
+  const fecha = document.getElementById('dp-fecha').value;
+  const p = DB.proyectos.find(x=>x.id===proyectoId);
+  const btn = document.getElementById('dp-submit-btn');
+  if(btn){ btn.disabled = true; btn.textContent = 'subiendo…'; }
+  const uploaded = await uploadFileToDrive('dp-file', p?p.nombre:'Sin proyecto', tipo);
+  DB.documentos.push({id:uid(DB.documentos), nombre, proyectoId, tipo, fecha, driveUrl: uploaded?uploaded.driveUrl:'', driveFileId: uploaded?uploaded.driveFileId:''});
   saveDB(); renderProyectoDetalle(proyectoId);
 }
 
@@ -1094,26 +1104,40 @@ function saveEditSesion(id){
 
 function addCR(proyectoId){
   const contenido = document.getElementById('cr-contenido').value.trim();
-  if(!contenido) return alert('Falta el contenido del CR.');
+  if(!contenido) return alert('Falta el contenido de la reunión.');
   const fecha = document.getElementById('cr-fecha').value;
+  const hora = document.getElementById('cr-hora').value;
+  const asistentes = document.getElementById('cr-asistentes').value;
   const acciones = document.getElementById('cr-acciones').value;
-  DB.comptesRendus.push({id:uid(DB.comptesRendus), proyectoId, fecha, asistentes:document.getElementById('cr-asistentes').value, contenido, acciones});
+  const cr = {id:uid(DB.comptesRendus), proyectoId, fecha, hora, asistentes, contenido, acciones, calendarEventId:''};
+  DB.comptesRendus.push(cr);
   // Cada línea de "acciones a seguir" se convierte automáticamente en una tarea pendiente.
   const lineas = acciones.split('\n').map(l=>l.trim()).filter(Boolean);
   lineas.forEach(titulo=>{
     DB.tareas.push({id:uid(DB.tareas), proyectoId, titulo, responsable:'', estado:'Pendiente', fecha});
   });
-  saveDB(); renderProyectoDetalle(proyectoId);
+  saveDB();
+  // Si hay hora, crea también un evento en Google Calendar (reunión de 1h por defecto).
+  if(hora && fecha && session.token){
+    const p = DB.proyectos.find(x=>x.id===proyectoId);
+    const inicio = new Date(fecha+'T'+hora+':00').toISOString();
+    const fin = new Date(new Date(inicio).getTime()+3600000).toISOString();
+    gasPost('logMeeting', {token: session.token, data:{proyecto:(p?p.nombre:''), asistentes, inicio, fin}})
+      .then(r=>{ if(r.ok){ cr.calendarEventId = r.eventId; saveDB(); } })
+      .catch(()=>{});
+  }
+  renderProyectoDetalle(proyectoId);
 }
 function renderEditCRForm(c){
   return `<tr><td colspan="5"><div class="card" style="margin:8px 0 4px; background:var(--panel-2);">
     <div class="grid">
       <div><label>Fecha</label><input type="date" id="e-fecha-${c.id}" value="${c.fecha||''}"></div>
+      <div><label>Hora</label><input type="time" id="e-hora-${c.id}" value="${c.hora||''}"></div>
       <div style="grid-column:span 2;"><label>Asistentes</label><input id="e-asistentes-${c.id}" value="${c.asistentes||''}"></div>
     </div>
     <div style="margin-top:10px;"><label>Contenido</label><textarea id="e-contenido-${c.id}" rows="2">${c.contenido||''}</textarea></div>
     <div style="margin-top:10px;"><label>Acciones a seguir</label><textarea id="e-acciones-${c.id}" rows="2">${c.acciones||''}</textarea></div>
-    <p class="field-note" style="margin-top:4px;">Editar aquí no crea tareas nuevas — eso solo pasa al añadir el CR por primera vez. Añade tareas nuevas desde la pestaña Tareas si hace falta.</p>
+    <p class="field-note" style="margin-top:4px;">Editar aquí no crea tareas nuevas ni reajusta el evento de Calendar — solo pasa al crear la reunión.</p>
     <div style="margin-top:14px; display:flex; gap:10px;">
       <button class="btn btn-primary" onclick="saveEditCR(${c.id})">Guardar cambios</button>
       <button class="btn" onclick="toggleEdit('comptesRendus',${c.id})">Cancelar</button>
@@ -1123,22 +1147,21 @@ function renderEditCRForm(c){
 function saveEditCR(id){
   const c = DB.comptesRendus.find(x=>x.id===id); if(!c) return;
   const g = f => document.getElementById(f+'-'+id).value;
-  c.fecha=g('e-fecha'); c.asistentes=g('e-asistentes'); c.contenido=g('e-contenido'); c.acciones=g('e-acciones');
+  c.fecha=g('e-fecha'); c.hora=g('e-hora'); c.asistentes=g('e-asistentes'); c.contenido=g('e-contenido'); c.acciones=g('e-acciones');
   editingId.comptesRendus = null; saveDB(); renderProyectoDetalle(c.proyectoId);
 }
 
 function addTarea(proyectoId){
   const titulo = document.getElementById('tk-titulo').value.trim();
   if(!titulo) return alert('Falta el título de la tarea.');
-  DB.tareas.push({id:uid(DB.tareas), proyectoId, titulo, responsable:document.getElementById('tk-responsable').value, estado:document.getElementById('tk-estado').value, fecha:document.getElementById('tk-fecha').value});
+  DB.tareas.push({id:uid(DB.tareas), proyectoId, titulo, responsable:'', estado:document.getElementById('tk-estado').value, fecha:document.getElementById('tk-fecha').value});
   saveDB(); renderProyectoDetalle(proyectoId);
 }
 function setTareaEstado(id, estado){ const t=DB.tareas.find(x=>x.id===id); if(t){ t.estado=estado; saveDB(); route(); } }
 function renderEditTareaForm(t){
-  return `<tr><td colspan="5"><div class="card" style="margin:8px 0 4px; background:var(--panel-2);">
+  return `<tr><td colspan="4"><div class="card" style="margin:8px 0 4px; background:var(--panel-2);">
     <div class="grid">
-      <div><label>Título</label><input id="e-titulo-${t.id}" value="${t.titulo}"></div>
-      <div><label>Responsable</label><input id="e-responsable-${t.id}" value="${t.responsable||''}"></div>
+      <div style="grid-column:span 2;"><label>Título</label><input id="e-titulo-${t.id}" value="${t.titulo}"></div>
       <div><label>Estado</label><select id="e-estado-${t.id}">${['Pendiente','En curso','Hecho'].map(e=>`<option ${e===t.estado?'selected':''}>${e}</option>`).join('')}</select></div>
       <div><label>Fecha límite</label><input type="date" id="e-fecha-${t.id}" value="${t.fecha||''}"></div>
     </div>
@@ -1151,7 +1174,7 @@ function renderEditTareaForm(t){
 function saveEditTarea(id){
   const t = DB.tareas.find(x=>x.id===id); if(!t) return;
   const g = f => document.getElementById(f+'-'+id).value;
-  t.titulo=g('e-titulo').trim()||t.titulo; t.responsable=g('e-responsable'); t.estado=g('e-estado'); t.fecha=g('e-fecha');
+  t.titulo=g('e-titulo').trim()||t.titulo; t.estado=g('e-estado'); t.fecha=g('e-fecha');
   editingId.tareas = null; saveDB(); renderProyectoDetalle(t.proyectoId);
 }
 
@@ -1171,10 +1194,10 @@ function addProyecto(){
 function setProyectoEtapa(id, etapa){ const p=DB.proyectos.find(x=>x.id===id); if(p){p.etapa=etapa; saveDB(); route();} }
 function deleteItem(coll, id){
   if(!confirm('¿Eliminar este registro?')) return;
-  if(coll==='sesionesTrabajo'){
-    const s = DB.sesionesTrabajo.find(x=>x.id===id);
-    if(s && s.calendarEventId && session.token){
-      gasPost('deleteCalendarEvent', {token:session.token, eventId:s.calendarEventId}).catch(()=>{});
+  if(coll==='sesionesTrabajo' || coll==='comptesRendus'){
+    const item = DB[coll].find(x=>x.id===id);
+    if(item && item.calendarEventId && session.token){
+      gasPost('deleteCalendarEvent', {token:session.token, eventId:item.calendarEventId}).catch(()=>{});
     }
   }
   DB[coll] = DB[coll].filter(x=>x.id!==id);
@@ -1307,37 +1330,43 @@ function renderClientes(){
       </div>
       <button class="btn btn-primary" style="margin-top:14px;" onclick="addCliente()">+ añadir cliente</button>`}
     </div>
-    <table>
-      <thead><tr><th>Razón social</th><th>Contacto</th><th>Email</th><th>Recurrencia</th><th>Proyectos</th><th></th></tr></thead>
-      <tbody>${DB.clientes.map(c=>{
-        const n = DB.proyectos.filter(p=>p.cliente===c.nombre).length;
-        return `<tr><td>${c.nombre}</td><td>${c.contacto||'—'}</td><td>${c.email||'—'}</td>
-          <td><span class="pill ${c.recurrencia==='recurrente'?'tag-cyan':'tag-dim'}">${c.recurrencia}</span></td>
-          <td>${n}</td><td style="white-space:nowrap;">
-            <button class="btn btn-sm" onclick="toggleEdit('clientes',${c.id})">${editingId.clientes===c.id?'Cerrar':'Editar'}</button>
+    <div class="card-grid">${DB.clientes.map(c=>{
+      const n = DB.proyectos.filter(p=>p.cliente===c.nombre).length;
+      const editing = editingId.clientes===c.id;
+      return `<div class="card">
+        ${editing ? `
+          <div class="grid">
+            <div><label>Razón social</label><input id="e-nombre-${c.id}" value="${c.nombre}"></div>
+            <div><label>Contacto</label><input id="e-contacto-${c.id}" value="${c.contacto||''}"></div>
+            <div><label>Email</label><input id="e-email-${c.id}" value="${c.email||''}"></div>
+            <div><label>Teléfono</label><input id="e-telefono-${c.id}" value="${c.telefono||''}"></div>
+            <div><label>Recurrencia</label><select id="e-recurrencia-${c.id}">
+              <option value="puntual" ${c.recurrencia==='puntual'?'selected':''}>Puntual</option>
+              <option value="recurrente" ${c.recurrencia==='recurrente'?'selected':''}>Recurrente</option></select></div>
+          </div>
+          <div style="margin-top:14px; display:flex; gap:10px;">
+            <button class="btn btn-primary btn-sm" onclick="saveEditCliente(${c.id})">Guardar</button>
+            <button class="btn btn-sm" onclick="toggleEdit('clientes',${c.id})">Cancelar</button>
+          </div>` : `
+          <div style="display:flex; justify-content:space-between; align-items:start;">
+            <div>
+              <div class="display" style="font-size:16px; font-weight:600;">${c.nombre}</div>
+              <div class="field-note" style="margin-top:2px;">${c.contacto||'sin contacto registrado'}</div>
+            </div>
+            <span class="pill ${c.recurrencia==='recurrente'?'tag-cyan':'tag-dim'}">${c.recurrencia}</span>
+          </div>
+          <div class="mono" style="font-size:12px; color:var(--text-dim); margin-top:14px; line-height:1.9;">
+            ${c.email?`<div>${c.email}</div>`:''}
+            ${c.telefono?`<div>${c.telefono}</div>`:''}
+            <div style="color:var(--text-faint);">${n} proyecto${n===1?'':'s'}</div>
+          </div>
+          <div style="margin-top:14px; display:flex; gap:8px;">
+            <button class="btn btn-sm" onclick="toggleEdit('clientes',${c.id})">Editar</button>
             <button class="btn btn-sm btn-danger" onclick="deleteItem('clientes',${c.id})">✕</button>
-          </td></tr>
-          ${editingId.clientes===c.id ? renderEditClienteForm(c) : ''}`;
-      }).join('') || `<tr><td colspan="6" class="empty">Sin clientes aún.</td></tr>`}
-      </tbody>
-    </table>`;
-}
-function renderEditClienteForm(c){
-  return `<tr><td colspan="6"><div class="card" style="margin:8px 0 4px; background:var(--panel-2);">
-    <div class="grid">
-      <div><label>Razón social (empresa)</label><input id="e-nombre-${c.id}" value="${c.nombre}"></div>
-      <div><label>Nombre del contacto directo</label><input id="e-contacto-${c.id}" value="${c.contacto||''}"></div>
-      <div><label>Email</label><input id="e-email-${c.id}" value="${c.email||''}"></div>
-      <div><label>Teléfono</label><input id="e-telefono-${c.id}" value="${c.telefono||''}"></div>
-      <div><label>Recurrencia</label><select id="e-recurrencia-${c.id}">
-        <option value="puntual" ${c.recurrencia==='puntual'?'selected':''}>Puntual</option>
-        <option value="recurrente" ${c.recurrencia==='recurrente'?'selected':''}>Recurrente</option></select></div>
-    </div>
-    <div style="margin-top:14px; display:flex; gap:10px;">
-      <button class="btn btn-primary" onclick="saveEditCliente(${c.id})">Guardar cambios</button>
-      <button class="btn" onclick="toggleEdit('clientes',${c.id})">Cancelar</button>
-    </div>
-  </div></td></tr>`;
+          </div>`}
+      </div>`;
+    }).join('') || `<div class="empty">Sin clientes aún.</div>`}
+    </div>`;
 }
 function saveEditCliente(id){
   const c = DB.clientes.find(x=>x.id===id); if(!c) return;
@@ -1373,33 +1402,35 @@ function renderBiblioteca(){
       <div style="margin-top:12px;"><label>Descripción</label><textarea id="b-desc" rows="2"></textarea></div>
       <button class="btn btn-primary" style="margin-top:14px;" onclick="addBiblioteca()">+ añadir definición</button>`}
     </div>
-    <table>
-      <thead><tr><th>Nombre</th><th>Madurez</th><th>Plugins</th><th>Descripción</th><th></th></tr></thead>
-      <tbody>${DB.biblioteca.map(b=>`
-        <tr><td>${b.nombre}</td><td><span class="pill ${b.madurez==='Vendible'?'tag-cyan':b.madurez==='Production-ready'?'tag-orange':'tag-dim'}">${b.madurez}</span></td>
-        <td>${b.plugins}</td><td style="max-width:280px;">${b.descripcion}</td>
-        <td style="white-space:nowrap;">
-          <button class="btn btn-sm" onclick="toggleEdit('biblioteca',${b.id})">${editingId.biblioteca===b.id?'Cerrar':'Editar'}</button>
-          <button class="btn btn-sm btn-danger" onclick="deleteItem('biblioteca',${b.id})">✕</button>
-        </td></tr>
-        ${editingId.biblioteca===b.id ? renderEditBibliotecaForm(b) : ''}`).join('') || `<tr><td colspan="5" class="empty">Aún no has catalogado definiciones.</td></tr>`}
-      </tbody>
-    </table>`;
-}
-function renderEditBibliotecaForm(b){
-  return `<tr><td colspan="5"><div class="card" style="margin:8px 0 4px; background:var(--panel-2);">
-    <div class="grid">
-      <div><label>Nombre</label><input id="e-nombre-${b.id}" value="${b.nombre}"></div>
-      <div><label>Madurez</label><select id="e-madurez-${b.id}">${MADUREZ.map(m=>`<option ${m===b.madurez?'selected':''}>${m}</option>`).join('')}</select></div>
-      <div><label>Plugins usados</label><input id="e-plugins-${b.id}" value="${b.plugins||''}"></div>
-      <div><label>Proyectos donde se usó</label><input id="e-proyectos-${b.id}" value="${b.proyectos||''}"></div>
-    </div>
-    <div style="margin-top:12px;"><label>Descripción</label><textarea id="e-descripcion-${b.id}" rows="2">${b.descripcion||''}</textarea></div>
-    <div style="margin-top:14px; display:flex; gap:10px;">
-      <button class="btn btn-primary" onclick="saveEditBiblioteca(${b.id})">Guardar cambios</button>
-      <button class="btn" onclick="toggleEdit('biblioteca',${b.id})">Cancelar</button>
-    </div>
-  </div></td></tr>`;
+    <div class="card-grid">${DB.biblioteca.map(b=>{
+      const editing = editingId.biblioteca===b.id;
+      return `<div class="card">
+        ${editing ? `
+          <div class="grid">
+            <div><label>Nombre</label><input id="e-nombre-${b.id}" value="${b.nombre}"></div>
+            <div><label>Madurez</label><select id="e-madurez-${b.id}">${MADUREZ.map(m=>`<option ${m===b.madurez?'selected':''}>${m}</option>`).join('')}</select></div>
+            <div><label>Plugins usados</label><input id="e-plugins-${b.id}" value="${b.plugins||''}"></div>
+            <div><label>Proyectos donde se usó</label><input id="e-proyectos-${b.id}" value="${b.proyectos||''}"></div>
+          </div>
+          <div style="margin-top:10px;"><label>Descripción</label><textarea id="e-descripcion-${b.id}" rows="2">${b.descripcion||''}</textarea></div>
+          <div style="margin-top:14px; display:flex; gap:10px;">
+            <button class="btn btn-primary btn-sm" onclick="saveEditBiblioteca(${b.id})">Guardar</button>
+            <button class="btn btn-sm" onclick="toggleEdit('biblioteca',${b.id})">Cancelar</button>
+          </div>` : `
+          <div style="display:flex; justify-content:space-between; align-items:start;">
+            <div class="display" style="font-size:16px; font-weight:600;">${b.nombre}</div>
+            <span class="pill ${b.madurez==='Vendible'?'tag-cyan':b.madurez==='Production-ready'?'tag-orange':'tag-dim'}">${b.madurez}</span>
+          </div>
+          <div class="field-note" style="margin-top:10px; color:var(--text-dim); min-height:32px;">${b.descripcion||'sin descripción'}</div>
+          <div class="proj-tools" style="margin-top:12px;">${(b.plugins||'').split(',').filter(x=>x.trim()).map(x=>`<span>${x.trim()}</span>`).join('')}</div>
+          ${b.proyectos?`<div class="field-note" style="margin-top:10px; color:var(--text-faint);">Usado en: ${b.proyectos}</div>`:''}
+          <div style="margin-top:14px; display:flex; gap:8px;">
+            <button class="btn btn-sm" onclick="toggleEdit('biblioteca',${b.id})">Editar</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteItem('biblioteca',${b.id})">✕</button>
+          </div>`}
+      </div>`;
+    }).join('') || `<div class="empty">Aún no has catalogado definiciones.</div>`}
+    </div>`;
 }
 function saveEditBiblioteca(id){
   const b = DB.biblioteca.find(x=>x.id===id); if(!b) return;
@@ -1527,18 +1558,19 @@ function renderFinanzas(){
         ${editingId.gastos===g.id ? renderEditGastoForm(g) : ''}`).join('') || `<tr><td colspan="5" class="empty">Sin gastos registrados.</td></tr>`}</tbody>
     </table>
     <div class="card">
-      <h3 style="font-family:'Space Grotesk',sans-serif; font-size:14px; margin-bottom:12px;">Rentabilidad por proyecto</h3>
+      <h3 style="font-family:'Space Grotesk',sans-serif; font-size:14px; margin-bottom:4px;">Tarifa horaria efectiva por proyecto</h3>
+      <p class="field-note" style="margin-bottom:12px;">Honorarios ÷ horas reales — cuánto te está pagando cada proyecto por hora de trabajo, frente a tu objetivo de 65€/h. No es un coste ni un descuento, es una medida de rendimiento.</p>
       <table>
-        <thead><tr><th>Proyecto</th><th>Honorarios</th><th>Horas reales</th><th>€/h objetivo (65€)</th><th>Rentabilidad</th></tr></thead>
+        <thead><tr><th>Proyecto</th><th>Honorarios</th><th>Horas reales</th><th>Tarifa efectiva</th><th>Objetivo</th></tr></thead>
         <tbody>${DB.proyectos.map(p=>{
-          const costoHoras = (p.horasReal||0)*65;
-          const rent = p.honorarios - costoHoras;
-          const ok = rent >= 0;
-          return `<tr><td>${p.nombre}</td><td>${fmt(p.honorarios)}</td><td>${p.horasReal||0}</td><td>${fmt(costoHoras)}</td>
-            <td style="color:${ok?'var(--ok)':'var(--danger)'}">${fmt(rent)}</td></tr>`;
+          const horas = p.horasReal||0;
+          const tarifaEf = horas>0 ? p.honorarios/horas : null;
+          const ok = tarifaEf!==null && tarifaEf>=65;
+          return `<tr><td>${p.nombre}</td><td>${fmt(p.honorarios)}</td><td>${horas}</td>
+            <td style="color:${tarifaEf===null?'var(--text-faint)':(ok?'var(--ok)':'var(--orange)')}">${tarifaEf===null?'sin horas aún':fmt(tarifaEf)+'/h'}</td>
+            <td class="mono" style="color:var(--text-faint);">65€/h</td></tr>`;
         }).join('') || `<tr><td colspan="5" class="empty">Sin proyectos.</td></tr>`}</tbody>
       </table>
-      <p class="field-note" style="margin-top:10px;">Rentabilidad = honorarios − (horas reales × tarifa objetivo). Ajusta la tarifa objetivo según tu costo-hora real.</p>
     </div>`;
 }
 function renderEditGastoForm(g){
@@ -1569,10 +1601,32 @@ function addGasto(){
 }
 
 /* ============================= DOCUMENTOS ============================= */
+// Sube el archivo seleccionado en <inputId> a Drive, dentro de
+// Root/<proyecto>/<tipo>/. Devuelve {driveUrl, driveFileId} o null si no hay
+// archivo seleccionado (el documento se registra igual, solo sin archivo).
+async function uploadFileToDrive(inputId, proyectoNombre, tipo){
+  const input = document.getElementById(inputId);
+  if(!input || !input.files || !input.files[0]) return null;
+  const file = input.files[0];
+  const base64 = await new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=> resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+  const r = await gasPost('uploadDocument', {token: session.token, data:{
+    proyectoNombre: proyectoNombre || 'Sin proyecto', tipo: tipo || 'General',
+    filename: file.name, mimeType: file.type || 'application/octet-stream', base64
+  }});
+  if(r.ok) return {driveUrl: r.data.url, driveFileId: r.data.fileId};
+  alert('No se pudo subir el archivo a Drive: ' + (r.error || 'error desconocido'));
+  return null;
+}
+
 function renderDocumentos(){
   root().innerHTML = `
     <h2 class="mod-title">Documentos</h2>
-    <p class="mod-desc">Registro de entregables por proyecto (metadatos — el almacenamiento real iría en Drive vía GAS).</p>
+    <p class="mod-desc">Entregables por proyecto — el archivo se sube a Drive, organizado en Proyecto / Tipo, dentro de la carpeta raíz de NEA.</p>
     <div class="card">
       <div class="toolbar" style="margin-bottom:${addOpen.documentos?'14px':'0'};">
         <h3 style="font-family:'Space Grotesk',sans-serif; font-size:14px; margin:0;">Registrar documento</h3>
@@ -1582,32 +1636,35 @@ function renderDocumentos(){
       <div class="grid">
         <div><label>Nombre</label><input id="d-nombre"></div>
         <div><label>Proyecto</label><select id="d-proyecto">${DB.proyectos.map(p=>`<option value="${p.id}">${p.nombre}</option>`).join('')}</select></div>
-        <div><label>Tipo</label><input id="d-tipo" placeholder="Devis, informe, plano…"></div>
+        <div><label>Tipo (crea/usa la subcarpeta con este nombre)</label><input id="d-tipo" placeholder="Devis, Facturas, Planos…"></div>
         <div><label>Fecha</label><input type="date" id="d-fecha"></div>
       </div>
-      <button class="btn btn-primary" style="margin-top:14px;" onclick="addDocumento()">+ registrar documento</button>`}
+      <div style="margin-top:10px;"><label>Archivo (opcional)</label><input type="file" id="d-file"></div>
+      <button class="btn btn-primary" style="margin-top:14px;" id="d-submit-btn" onclick="addDocumento()">+ registrar documento</button>`}
     </div>
     <table>
-      <thead><tr><th>Nombre</th><th>Proyecto</th><th>Tipo</th><th>Fecha</th><th></th></tr></thead>
+      <thead><tr><th>Nombre</th><th>Proyecto</th><th>Tipo</th><th>Fecha</th><th>Archivo</th><th></th></tr></thead>
       <tbody>${DB.documentos.map(d=>{
         const p = DB.proyectos.find(x=>x.id===d.proyectoId);
         return `<tr><td>${d.nombre}</td><td>${p?p.nombre:'—'}</td><td>${d.tipo}</td><td>${d.fecha}</td>
+          <td>${d.driveUrl?`<a href="${d.driveUrl}" target="_blank" style="color:var(--cyan);">Abrir</a>`:'—'}</td>
           <td style="white-space:nowrap;">
             <button class="btn btn-sm" onclick="toggleEdit('documentos',${d.id})">${editingId.documentos===d.id?'Cerrar':'Editar'}</button>
             <button class="btn btn-sm btn-danger" onclick="deleteItem('documentos',${d.id})">✕</button>
           </td></tr>
           ${editingId.documentos===d.id ? renderEditDocumentoForm(d) : ''}`;
-      }).join('') || `<tr><td colspan="5" class="empty">Sin documentos registrados.</td></tr>`}</tbody>
+      }).join('') || `<tr><td colspan="6" class="empty">Sin documentos registrados.</td></tr>`}</tbody>
     </table>`;
 }
 function renderEditDocumentoForm(d){
-  return `<tr><td colspan="5"><div class="card" style="margin:8px 0 4px; background:var(--panel-2);">
+  return `<tr><td colspan="6"><div class="card" style="margin:8px 0 4px; background:var(--panel-2);">
     <div class="grid">
       <div><label>Nombre</label><input id="e-nombre-${d.id}" value="${d.nombre}"></div>
       <div><label>Proyecto</label><select id="e-proyectoId-${d.id}">${DB.proyectos.map(p=>`<option value="${p.id}" ${p.id===d.proyectoId?'selected':''}>${p.nombre}</option>`).join('')}</select></div>
       <div><label>Tipo</label><input id="e-tipo-${d.id}" value="${d.tipo||''}"></div>
       <div><label>Fecha</label><input type="date" id="e-fecha-${d.id}" value="${d.fecha||''}"></div>
     </div>
+    <p class="field-note" style="margin-top:8px;">${d.driveUrl?`Archivo actual: <a href="${d.driveUrl}" target="_blank" style="color:var(--cyan);">abrir en Drive</a>. Editar aquí no lo reemplaza — bórralo y créalo de nuevo si necesitas subir otro archivo.`:'Este registro no tiene archivo adjunto.'}</p>
     <div style="margin-top:14px; display:flex; gap:10px;">
       <button class="btn btn-primary" onclick="saveEditDocumento(${d.id})">Guardar cambios</button>
       <button class="btn" onclick="toggleEdit('documentos',${d.id})">Cancelar</button>
@@ -1621,10 +1678,17 @@ function saveEditDocumento(id){
   d.proyectoId = parseInt(g('e-proyectoId'))||d.proyectoId; d.tipo = g('e-tipo'); d.fecha = g('e-fecha');
   editingId.documentos = null; saveDB(); renderDocumentos();
 }
-function addDocumento(){
+async function addDocumento(){
   const nombre = document.getElementById('d-nombre').value.trim();
   if(!nombre) return alert('Falta el nombre del documento.');
-  DB.documentos.push({id:uid(DB.documentos), nombre, proyectoId:parseInt(document.getElementById('d-proyecto').value), tipo:document.getElementById('d-tipo').value, fecha:document.getElementById('d-fecha').value});
+  const proyectoId = parseInt(document.getElementById('d-proyecto').value);
+  const tipo = document.getElementById('d-tipo').value;
+  const fecha = document.getElementById('d-fecha').value;
+  const p = DB.proyectos.find(x=>x.id===proyectoId);
+  const btn = document.getElementById('d-submit-btn');
+  if(btn){ btn.disabled = true; btn.textContent = 'subiendo…'; }
+  const uploaded = await uploadFileToDrive('d-file', p?p.nombre:'Sin proyecto', tipo);
+  DB.documentos.push({id:uid(DB.documentos), nombre, proyectoId, tipo, fecha, driveUrl: uploaded?uploaded.driveUrl:'', driveFileId: uploaded?uploaded.driveFileId:''});
   saveDB(); renderDocumentos();
 }
 
