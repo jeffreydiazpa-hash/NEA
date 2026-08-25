@@ -56,6 +56,8 @@ label{display:block; font-family:'JetBrains Mono', monospace; font-size:10.5px; 
 .card{background:var(--panel); border:1px solid var(--border); padding:20px; margin-bottom:16px;}
 .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px;}
 .card-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px;}
+.team-avatar{width:64px; height:64px; border-radius:50%; background:var(--panel-2); border:1px solid var(--border); margin:0 auto; display:flex; align-items:center; justify-content:center; font-family:'Space Grotesk',sans-serif; font-size:22px; font-weight:600; color:var(--text-dim); overflow:hidden;}
+.team-avatar img{width:100%; height:100%; object-fit:cover;}
 .card-grid .card{margin-bottom:0;}
 .identity-map{display:flex; flex-direction:column; align-items:center; padding:32px 0 12px;}
 .identity-core{
@@ -123,13 +125,21 @@ h2.mod-title{font-family:'Space Grotesk', sans-serif; font-size:20px; font-weigh
 .navlinks{display:flex; gap:32px; font-size:13px; font-family:'Space Grotesk', sans-serif; font-weight:500;}
 .navlinks a{color:var(--text-dim); transition:color .2s;}
 .navlinks a:hover{color:var(--cyan);}
+.navlinks a.active-nav{color:var(--text); font-weight:600;}
+.page-content{padding-top:118px; padding-bottom:60px;}
 .lang-switch{font-size:11px; display:flex; align-items:center; gap:6px;}
 .lang-opt{color:var(--text-faint); cursor:pointer; transition:color .2s;}
 .lang-opt:hover{color:var(--text);}
 .lang-opt.active{color:var(--cyan);}
 .lang-sep{color:var(--border);}
-#public .hero{min-height:100vh; display:flex; flex-direction:column; justify-content:center; padding-top:68px;}
-.hero-inner{display:grid; grid-template-columns:1.1fr 0.9fr; gap:40px; align-items:center;}
+#public .hero-feature{position:relative; min-height:88vh; display:flex; align-items:flex-end; padding-top:68px; overflow:hidden;}
+.hero-feature-bg{position:absolute; inset:0; z-index:0;}
+.hero-feature-bg svg{width:100%; height:100%;}
+.hero-feature-fade{position:absolute; inset:0; background:linear-gradient(180deg, var(--bg) 0%, rgba(246,241,231,.55) 35%, var(--bg) 92%);}
+.hero-feature-content{position:relative; z-index:1; padding-bottom:64px;}
+.hero-feature-title{font-family:'Space Grotesk',sans-serif; font-size:clamp(42px,8vw,104px); font-weight:600; letter-spacing:-.02em; line-height:.98; margin-top:10px; max-width:900px;}
+.hero-feature-desc{font-family:'Newsreader', serif; font-style:italic; font-size:19px; color:var(--text-dim); margin-top:18px; max-width:560px; line-height:1.5;}
+.hero-band{padding:36px 0 60px;}
 .eyebrow{font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--orange); letter-spacing:.12em; text-transform:uppercase; margin-bottom:20px; display:flex; align-items:center; gap:10px;}
 .eyebrow::before{content:''; width:24px; height:1px; background:var(--orange);}
 .tricolor-bar{position:fixed; top:0; left:0; right:0; height:4px; z-index:101; display:flex;}
@@ -243,7 +253,7 @@ const CONFIG = {
 let DB = {
   proyectos: [], clientes: [], biblioteca: [], tiempo: [], gastos: [], documentos: [],
   sesionesTrabajo: [], comptesRendus: [], tareas: [], pagos: [],
-  identidadCore: {nombre:'', descripcion:''}, divisiones: [], fases: [], puntosFase: [],
+  identidadCore: {nombre:'', descripcion:''}, divisiones: [], fases: [], puntosFase: [], equipo: [],
   fiscal: { avisYear:2025, rfr:0, parts:1, autresRevenus:0, dateAvis:'', cotisationRate:0.232, acre:'no', vlRequested:'no', vlThreshold:29315, tranches:[] }
 };
 let session = { authed:false, token:null, expiresAt:null, loaded:false };
@@ -359,19 +369,21 @@ function logout(){
 let currentLang = 'fr';
 const I18N = {
   fr: {
-    nav:['Projets',"À propos",'Divisions','Services','Contact'],
+    nav:['Projets','Identité','Paramétrique','Équipe','Contact'],
     eyebrow:"Bureau d'études · Grasshopper / Rhino",
     h1:"Ingénierie paramétrique pour des projets BTP complexes.",
     lede:"NEA résout la géométrie, la structure et la fabrication numérique pour les bureaux d'études et entreprises qui ont besoin d'algorithmes, pas seulement de plans.",
     ctaPrimary:'Voir les projets', ctaSecondary:'Parlons de votre projet',
     stats:['Définitions GH','Ans de pratique','Itérations par projet'],
+    featuredLabel:'Projet phare',
     projTitle:'Travaux sélectionnés', projSub:"Chaque pièce part d'une contrainte réelle — structurelle, de fabrication ou environnementale — et aboutit à un algorithme réutilisable.",
     divTitle:'Trois divisions, un seul cerveau', divSub:"La conception paramétrique irrigue chaque division de NEA, à des étapes de développement différentes.",
-    aboutTitle:"Bureau d'études paramétrique",
+    aboutTitle:"Le cerveau de NEA — conception paramétrique",
     aboutP1:"NEA travaille à la frontière entre le design et la logique : nous construisons des systèmes Grasshopper qui traduisent les contraintes de projet — structurelles, environnementales, de fabrication — en géométrie générative, optimisable et documentée.",
     aboutP2:"Nous ne livrons pas une forme finale, nous livrons le système qui la génère. Chaque définition n'est pas seulement un résultat, c'est un outil que l'équipe projet peut continuer à utiliser.",
     skillSoft:'Logiciels', skillCode:'Code',
     lvlAdv:'avancé', lvlInt:'intermédiaire',
+    equipoTitle:"L'équipe", equipoSub:"Aujourd'hui une seule personne, demain une équipe complète.",
     servTitle:'Comment nous travaillons', servSub:"Pour les bureaux d'architecture, d'ingénierie et les entreprises BTP.",
     services:[
       ['Conception paramétrique de projet','Façades, structures et géométrie complexe, du concept au modèle final.'],
@@ -385,19 +397,21 @@ const I18N = {
     emptyProj:"Aucun projet n'est encore marqué comme public. Active-les depuis le panneau d'administration."
   },
   es: {
-    nav:['Proyectos','Sobre NEA','Divisiones','Servicios','Contacto'],
+    nav:['Proyectos','Identidad','Paramétrico','Equipo','Contacto'],
     eyebrow:"Bureau d'études · Grasshopper / Rhino",
     h1:'Ingeniería paramétrica para proyectos BTP complejos.',
     lede:'NEA resuelve geometría, estructura y fabricación digital para estudios y constructoras que necesitan algoritmos, no solo planos.',
     ctaPrimary:'Ver proyectos', ctaSecondary:'Hablemos de tu proyecto',
     stats:['Definiciones GH','Años de práctica','Iteraciones por proyecto'],
+    featuredLabel:'Proyecto destacado',
     projTitle:'Trabajo seleccionado', projSub:'Cada pieza parte de una restricción real — estructural, de fabricación o ambiental — y termina en un algoritmo reutilizable.',
     divTitle:'Tres divisiones, un solo cerebro', divSub:'El diseño paramétrico irriga cada división de NEA, en distintas etapas de desarrollo.',
-    aboutTitle:"Bureau d'études paramétrique",
+    aboutTitle:'El cerebro de NEA — diseño paramétrico',
     aboutP1:'NEA trabaja en el límite entre el diseño y la lógica: construimos sistemas en Grasshopper que traducen criterios de proyecto — estructurales, ambientales, de fabricación — en geometría generativa, optimizable y documentada.',
     aboutP2:'No entregamos una forma final, entregamos el sistema que la genera. Cada definición no es solo un resultado, es una herramienta que el equipo de proyecto puede seguir usando.',
     skillSoft:'Software', skillCode:'Código',
     lvlAdv:'avanzado', lvlInt:'intermedio',
+    equipoTitle:'El equipo', equipoSub:'Hoy una sola persona, mañana un equipo completo.',
     servTitle:'Cómo trabajamos', servSub:'Para estudios de arquitectura, ingeniería y constructoras BTP.',
     services:[
       ['Diseño paramétrico de proyecto','Fachadas, estructuras y geometría compleja, de criterio a modelo final.'],
@@ -411,19 +425,21 @@ const I18N = {
     emptyProj:'Aún no hay proyectos marcados como publicables. Márcalos desde el panel de administración.'
   },
   en: {
-    nav:['Projects','About NEA','Divisions','Services','Contact'],
+    nav:['Projects','Identity','Parametric','Team','Contact'],
     eyebrow:"Bureau d'études · Grasshopper / Rhino",
     h1:'Parametric engineering for complex construction projects.',
     lede:'NEA solves geometry, structure and digital fabrication for architecture and construction firms that need algorithms, not just drawings.',
     ctaPrimary:'View projects', ctaSecondary:"Let's talk about your project",
     stats:['GH definitions','Years of practice','Iterations per project'],
+    featuredLabel:'Featured project',
     projTitle:'Selected work', projSub:'Each piece starts from a real constraint — structural, fabrication-related or environmental — and ends as a reusable algorithm.',
     divTitle:'Three divisions, one brain', divSub:'Parametric design runs through every NEA division, each at its own stage of development.',
-    aboutTitle:'Parametric design office',
+    aboutTitle:"NEA's brain — parametric design",
     aboutP1:"NEA works at the edge of design and logic: we build Grasshopper systems that translate project constraints — structural, environmental, fabrication-related — into generative, optimisable and documented geometry.",
     aboutP2:"We don't deliver a final shape, we deliver the system that generates it. Every definition isn't just a result, it's a tool the project team can keep using.",
     skillSoft:'Software', skillCode:'Code',
     lvlAdv:'advanced', lvlInt:'intermediate',
+    equipoTitle:'The team', equipoSub:'One person today, a full team tomorrow.',
     servTitle:'How we work', servSub:'For architecture and engineering firms and construction companies.',
     services:[
       ['Parametric project design','Facades, structures and complex geometry, from concept to final model.'],
@@ -440,29 +456,61 @@ const I18N = {
 function setLang(l){ currentLang = l; renderPublic(); }
 
 /* ============================= PUBLIC SITE ============================= */
+function publicPage(){
+  const h = location.hash.slice(1);
+  const clean = h.startsWith('/') ? h.slice(1) : h;
+  const seg = (clean.split('/')[0]||'').trim();
+  const valid = ['proyectos','identidad','parametrico','equipo','contacto'];
+  return valid.includes(seg) ? seg : 'home';
+}
 function renderPublic(){
   const t = I18N[currentLang];
-  renderPublicShell(t);
+  const page = publicPage();
+  renderPublicShell(t, page);
   gasGet('publicProjects').then(r=>{
     const items = (r && r.ok) ? r.data : [];
     const el = document.getElementById('proj-grid-public');
     if(el) el.outerHTML = buildPublicProjGrid(items, t);
+    renderFeaturedProject(items, t);
   }).catch(()=>{
     const el = document.getElementById('proj-grid-public');
     if(el) el.innerHTML = `<div class="empty" style="grid-column:1/-1;">${t.loadError}</div>`;
   });
   gasGet('publicIdentity').then(r=>{
     const el = document.getElementById('identity-map-public');
-    if(!el) return;
-    if(r && r.ok && r.data.core && r.data.core.nombre){
-      el.outerHTML = buildIdentityMap(r.data.core, r.data.divisiones||[], [], false);
-    } else {
-      el.innerHTML = `<div class="empty">Identidad de NEA aún no publicada.</div>`;
+    if(el){
+      if(r && r.ok && r.data.core && r.data.core.nombre){
+        el.outerHTML = buildIdentityMap(r.data.core, r.data.divisiones||[], [], false);
+      } else {
+        el.innerHTML = `<div class="empty">Identidad de NEA aún no publicada.</div>`;
+      }
     }
+    const teamEl = document.getElementById('equipo-grid-public');
+    if(teamEl) teamEl.outerHTML = buildEquipoGrid((r && r.ok && r.data.equipo) || []);
   }).catch(()=>{
     const el = document.getElementById('identity-map-public');
     if(el) el.innerHTML = `<div class="empty">${t.loadError}</div>`;
   });
+}
+function renderFeaturedProject(items, t){
+  const titleEl = document.getElementById('featured-title');
+  const descEl = document.getElementById('featured-desc');
+  const tagEl = document.getElementById('featured-tag');
+  const labelEl = document.getElementById('featured-label');
+  if(!titleEl) return;
+  const featured = items.find(p=>p.destacado);
+  if(featured){
+    const loc = featured[currentLang] || featured.fr || {};
+    if(labelEl) labelEl.style.display = 'flex';
+    titleEl.textContent = featured.nombre;
+    if(descEl) descEl.textContent = loc.desc || '';
+    if(tagEl){ tagEl.textContent = loc.tag || featured.tipo || ''; tagEl.style.display = (loc.tag||featured.tipo) ? 'inline-block' : 'none'; }
+  } else {
+    if(labelEl) labelEl.style.display = 'none';
+    titleEl.textContent = t.h1;
+    if(descEl) descEl.textContent = t.lede;
+    if(tagEl) tagEl.style.display = 'none';
+  }
 }
 function buildPublicProjGrid(publicables, t){
   return `<div class="proj-grid" id="proj-grid-public">${publicables.length ? publicables.map(p=>{
@@ -480,119 +528,129 @@ function buildPublicProjGrid(publicables, t){
   }).join('') : `<div class="empty" style="grid-column:1/-1;">${t.emptyProj}</div>`}
     </div>`;
 }
-function renderPublicShell(t){
-  document.getElementById('app').innerHTML = `
-  <div id="public">
-    <div class="tricolor-bar"><span style="background:var(--gold);"></span><span style="background:var(--teal);"></span><span style="background:var(--maroon);"></span></div>
-    <header><nav class="wrap">
-      <div class="logo"><svg class="logo-mark" width="22" height="18" viewBox="0 0 52 44" xmlns="http://www.w3.org/2000/svg"><polygon points="0,44 20,4 26,20" fill="var(--gold)"></polygon><polygon points="14,44 26,4 34,44" fill="var(--teal)"></polygon><polygon points="28,20 34,10 44,44 30,44" fill="var(--maroon)"></polygon></svg> NEA</div>
-      <div class="navlinks">
-        <a href="#proyectos-pub"><span class="mono" style="color:var(--text-faint); margin-right:5px;">01</span>${t.nav[0]}</a>
-        <a href="#sobre-pub"><span class="mono" style="color:var(--text-faint); margin-right:5px;">02</span>${t.nav[1]}</a>
-        <a href="#divisiones-pub"><span class="mono" style="color:var(--text-faint); margin-right:5px;">03</span>${t.nav[2]}</a>
-        <a href="#servicios-pub"><span class="mono" style="color:var(--text-faint); margin-right:5px;">04</span>${t.nav[3]}</a>
-        <a href="#contacto-pub"><span class="mono" style="color:var(--text-faint); margin-right:5px;">05</span>${t.nav[4]}</a>
-      </div>
-      <div style="display:flex; align-items:center; gap:14px;">
-        <div class="lang-switch mono">
-          ${['fr','es','en'].map(l=>`<span class="lang-opt ${l===currentLang?'active':''}" onclick="setLang('${l}')">${l.toUpperCase()}</span>`).join('<span class="lang-sep">/</span>')}
-        </div>
-      </div>
-    </nav></header>
+function buildEquipoGrid(equipo){
+  const sorted = [...equipo].sort((a,b)=>(a.orden||0)-(b.orden||0));
+  return `<div class="card-grid" id="equipo-grid-public">${sorted.length ? sorted.map(m=>`
+    <div class="card" style="text-align:center;">
+      <div class="team-avatar">${(m.foto||'').trim() ? `<img src="${m.foto}" alt="${m.nombre}">` : (m.nombre||'?').trim().charAt(0).toUpperCase()}</div>
+      <div class="display" style="font-size:16px; font-weight:600; margin-top:14px;">${m.nombre}</div>
+      <div class="mono" style="font-size:11px; color:var(--cyan); text-transform:uppercase; letter-spacing:.04em; margin-top:4px;">${m.rol||''}</div>
+      <div class="serif" style="font-size:13.5px; color:var(--text-dim); margin-top:12px; line-height:1.6;">${m.bio||''}</div>
+    </div>`).join('') : `<div class="empty">Equipo aún no publicado.</div>`}
+  </div>`;
+}
+function heroSvgMarkup(){
+  return `<svg class="graph" viewBox="0 0 380 400" preserveAspectRatio="xMidYMid slice">
+    <defs>
+      <radialGradient id="heroWash" cx="50%" cy="42%" r="65%">
+        <stop offset="0%" stop-color="var(--teal)" stop-opacity=".07"></stop>
+        <stop offset="100%" stop-color="var(--teal)" stop-opacity="0"></stop>
+      </radialGradient>
+    </defs>
+    <rect x="0" y="0" width="380" height="400" fill="url(#heroWash)"></rect>
+    <polygon class="vcell vcell-accent vcell-gold" style="animation-delay:3.3s" points="137.4,323.0 125.9,300.5 99.5,285.9 94.8,285.8 80.4,289.9 69.1,296.3 67.2,300.7 52.7,380.0 76.0,380.0 133.1,335.5 136.8,329.8"></polygon>
+    <polygon class="vcell" points="263.0,324.9 352.7,310.6 340.0,260.0 337.9,252.7 288.7,264.9 248.0,305.6 260.5,323.1"></polygon>
+    <polygon class="vcell" points="162.6,286.4 199.8,309.9 220.9,304.5 235.9,299.1 218.9,242.6 184.8,224.3 160.9,251.3"></polygon>
+    <polygon class="vcell vcell-accent vcell-teal" style="animation-delay:2.2s" points="284.0,373.9 363.1,352.5 352.7,310.6 263.0,324.9 282.4,371.6"></polygon>
+    <polygon class="vcell" points="249.6,215.6 218.9,242.6 235.9,299.1 248.0,305.6 288.7,264.9 273.7,213.4"></polygon>
+    <polygon class="vcell" points="67.2,300.7 10.0,299.1 10.0,380.0 52.7,380.0"></polygon>
+    <polygon class="vcell" points="238.8,181.2 199.5,183.1 171.5,197.5 184.8,224.3 218.9,242.6 249.6,215.6 240.6,182.5"></polygon>
+    <polygon class="vcell vcell-accent vcell-maroon" style="animation-delay:1.65s" points="288.7,264.9 337.9,252.7 319.8,189.3 316.0,187.6 273.7,213.4"></polygon>
+    <polygon class="vcell" points="154.3,184.5 117.2,208.0 116.7,208.8 132.4,256.1 160.9,251.3 184.8,224.3 171.5,197.5 158.0,185.7"></polygon>
+    <polygon class="vcell" points="260.5,323.1 248.0,305.6 235.9,299.1 220.9,304.5 196.6,380.0 215.9,380.0"></polygon>
+    <polygon class="vcell" points="67.8,219.7 35.9,230.2 27.1,245.5 36.7,262.1 69.1,296.3 80.4,289.9 73.2,222.8"></polygon>
+    <polygon class="vcell vcell-accent vcell-gold" style="animation-delay:1.1s" points="249.6,215.6 273.7,213.4 316.0,187.6 308.6,174.2 301.6,166.9 276.5,157.6 250.0,200.0 245.3,178.7 240.6,182.5"></polygon>
+    <polygon class="vcell" points="282.4,371.6 263.0,324.9 260.5,323.1 215.9,380.0 264.1,380.0"></polygon>
+    <polygon class="vcell" points="220.9,304.5 199.8,309.9 191.6,317.8 173.1,358.5 172.5,380.0 196.6,380.0"></polygon>
+    <polygon class="vcell" points="132.4,256.1 99.5,285.9 125.9,300.5 162.6,286.4 160.9,251.3"></polygon>
+    <polygon class="vcell vcell-accent vcell-teal" style="animation-delay:2.75s" points="125.9,300.5 137.4,323.0 191.6,317.8 199.8,309.9 162.6,286.4"></polygon>
+    <polygon class="vcell" points="199.5,131.0 225.9,145.3 236.9,140.1 223.8,80.4 206.1,84.3 198.0,125.1"></polygon>
+    <polygon class="vcell" points="133.1,335.5 76.0,380.0 149.9,380.0"></polygon>
+    <polygon class="vcell" points="199.5,131.0 195.8,135.9 185.0,190.0 175.5,162.7 158.0,185.7 171.5,197.5 199.5,183.1 225.8,146.3 225.9,145.3"></polygon>
+    <polygon class="vcell" points="47.5,177.4 32.3,210.9 35.9,230.2 67.8,219.7 65.6,172.8 57.8,158.8 57.4,158.9"></polygon>
+    <polygon class="vcell vcell-accent vcell-maroon" style="animation-delay:3.85s" points="73.2,222.8 80.4,289.9 94.8,285.8 104.9,218.8"></polygon>
+    <polygon class="vcell" points="104.9,218.8 94.8,285.8 99.5,285.9 132.4,256.1 116.7,208.8"></polygon>
+    <polygon class="vcell" points="36.7,262.1 10.0,280.2 10.0,299.1 67.2,300.7 69.1,296.3"></polygon>
+    <polygon class="vcell" points="284.0,373.9 285.5,380.0 370.0,380.0 363.1,352.5"></polygon>
+    <polygon class="vcell vcell-accent vcell-gold" style="animation-delay:0.0s" points="65.6,172.8 67.8,219.7 73.2,222.8 104.9,218.8 116.7,208.8 117.2,208.0 99.3,195.8 95.0,210.0 78.4,181.5"></polygon>
+    <polygon class="vcell" points="173.1,358.5 191.6,317.8 137.4,323.0 136.8,329.8"></polygon>
+    <polygon class="vcell" points="173.1,358.5 136.8,329.8 133.1,335.5 149.9,380.0 172.5,380.0"></polygon>
+    <polygon class="vcell vcell-accent vcell-teal" style="animation-delay:0.55s" points="119.6,129.2 153.3,98.4 140.0,60.0 119.3,129.2"></polygon>
+    <polygon class="vcell" points="199.5,183.1 238.8,181.2 225.8,146.3"></polygon>
+    <polygon class="vcell" points="301.6,166.9 300.0,120.0 276.5,157.6"></polygon>
+    <polygon class="vcell" points="36.7,262.1 27.1,245.5 17.1,244.3 10.0,260.0 10.0,280.2"></polygon>
+    <polygon class="vcell" points="225.9,145.3 225.8,146.3 238.8,181.2 240.6,182.5 245.3,178.7 236.9,140.1"></polygon>
+    <polygon class="vcell" points="223.8,80.4 215.0,40.0 206.1,84.3"></polygon>
+    <polygon class="vcell" points="301.6,166.9 308.6,174.2 313.0,165.5 300.0,120.0 300.0,120.0"></polygon>
+    <polygon class="vcell" points="27.1,245.5 35.9,230.2 32.3,210.9 17.1,244.3"></polygon>
+    <polygon class="vcell" points="308.6,174.2 316.0,187.6 319.8,189.3 313.0,165.5"></polygon>
+    <polygon class="vcell" points="284.0,373.9 282.4,371.6 264.1,380.0 285.5,380.0"></polygon>
+    <polygon class="vcell" points="57.4,158.9 57.8,158.8 62.6,154.4 60.0,150.0 56.1,158.5"></polygon>
+    <polygon class="vcell" points="57.4,158.9 56.1,158.5 47.5,177.4"></polygon>
+    <circle class="vdot" style="animation-delay:0s" cx="84.5" cy="204.2" r="2.8"></circle>
+    <circle class="vdot" style="animation-delay:0.9s" cx="137.5" cy="96.0" r="2.8"></circle>
+    <circle class="vdot" style="animation-delay:1.8s" cx="278.4" cy="188.4" r="2.8"></circle>
+    <circle class="vdot" style="animation-delay:2.7s" cx="305.8" cy="228.8" r="2.8"></circle>
+    <circle class="vdot" style="animation-delay:0.45s" cx="314.1" cy="340.5" r="2.8"></circle>
+    <circle class="vdot" style="animation-delay:1.35s" cx="160.4" cy="306.7" r="2.8"></circle>
+  </svg>`;
+}
+function renderPublicShell(t, page){
+  const navItems = [
+    {key:'proyectos', idx:'01', label:t.nav[0]},
+    {key:'identidad', idx:'02', label:t.nav[1]},
+    {key:'parametrico', idx:'03', label:t.nav[2]},
+    {key:'equipo', idx:'04', label:t.nav[3]},
+    {key:'contacto', idx:'05', label:t.nav[4]}
+  ];
+  const navHtml = navItems.map(n=>`<a href="#/${n.key}" class="${page===n.key?'active-nav':''}"><span class="mono" style="color:var(--text-faint); margin-right:5px;">${n.idx}</span>${n.label}</a>`).join('');
 
-    <section class="hero wrap">
-      <div class="hero-inner">
-        <div>
-          <div class="eyebrow">${t.eyebrow}</div>
-          <h1 class="display">${t.h1}</h1>
-          <p class="lede">${t.lede}</p>
-          <div class="hero-actions">
-            <a href="#proyectos-pub" class="btn btn-primary">${t.ctaPrimary}</a>
-            <a href="#contacto-pub" class="btn">${t.ctaSecondary}</a>
-          </div>
-          <div class="stats-row">
-            <div class="stat"><div class="num">30+</div><div class="lbl">${t.stats[0]}</div></div>
-            <div class="stat"><div class="num">6</div><div class="lbl">${t.stats[1]}</div></div>
-            <div class="stat"><div class="num">∞</div><div class="lbl">${t.stats[2]}</div></div>
-          </div>
-        </div>
-        <div class="graph-box">
-          <span class="tag">voronoi.gh</span>
-          <span class="tag2">cells: 39</span>
-          <svg class="graph" viewBox="0 0 380 400">
-            <defs>
-              <radialGradient id="heroWash" cx="50%" cy="42%" r="65%">
-                <stop offset="0%" stop-color="var(--teal)" stop-opacity=".07"></stop>
-                <stop offset="100%" stop-color="var(--teal)" stop-opacity="0"></stop>
-              </radialGradient>
-            </defs>
-            <rect x="0" y="0" width="380" height="400" fill="url(#heroWash)"></rect>
-            <polygon class="vcell vcell-accent vcell-gold" style="animation-delay:3.3s" points="137.4,323.0 125.9,300.5 99.5,285.9 94.8,285.8 80.4,289.9 69.1,296.3 67.2,300.7 52.7,380.0 76.0,380.0 133.1,335.5 136.8,329.8"></polygon>
-            <polygon class="vcell" points="263.0,324.9 352.7,310.6 340.0,260.0 337.9,252.7 288.7,264.9 248.0,305.6 260.5,323.1"></polygon>
-            <polygon class="vcell" points="162.6,286.4 199.8,309.9 220.9,304.5 235.9,299.1 218.9,242.6 184.8,224.3 160.9,251.3"></polygon>
-            <polygon class="vcell vcell-accent vcell-teal" style="animation-delay:2.2s" points="284.0,373.9 363.1,352.5 352.7,310.6 263.0,324.9 282.4,371.6"></polygon>
-            <polygon class="vcell" points="249.6,215.6 218.9,242.6 235.9,299.1 248.0,305.6 288.7,264.9 273.7,213.4"></polygon>
-            <polygon class="vcell" points="67.2,300.7 10.0,299.1 10.0,380.0 52.7,380.0"></polygon>
-            <polygon class="vcell" points="238.8,181.2 199.5,183.1 171.5,197.5 184.8,224.3 218.9,242.6 249.6,215.6 240.6,182.5"></polygon>
-            <polygon class="vcell vcell-accent vcell-maroon" style="animation-delay:1.65s" points="288.7,264.9 337.9,252.7 319.8,189.3 316.0,187.6 273.7,213.4"></polygon>
-            <polygon class="vcell" points="154.3,184.5 117.2,208.0 116.7,208.8 132.4,256.1 160.9,251.3 184.8,224.3 171.5,197.5 158.0,185.7"></polygon>
-            <polygon class="vcell" points="260.5,323.1 248.0,305.6 235.9,299.1 220.9,304.5 196.6,380.0 215.9,380.0"></polygon>
-            <polygon class="vcell" points="67.8,219.7 35.9,230.2 27.1,245.5 36.7,262.1 69.1,296.3 80.4,289.9 73.2,222.8"></polygon>
-            <polygon class="vcell vcell-accent vcell-gold" style="animation-delay:1.1s" points="249.6,215.6 273.7,213.4 316.0,187.6 308.6,174.2 301.6,166.9 276.5,157.6 250.0,200.0 245.3,178.7 240.6,182.5"></polygon>
-            <polygon class="vcell" points="282.4,371.6 263.0,324.9 260.5,323.1 215.9,380.0 264.1,380.0"></polygon>
-            <polygon class="vcell" points="220.9,304.5 199.8,309.9 191.6,317.8 173.1,358.5 172.5,380.0 196.6,380.0"></polygon>
-            <polygon class="vcell" points="132.4,256.1 99.5,285.9 125.9,300.5 162.6,286.4 160.9,251.3"></polygon>
-            <polygon class="vcell vcell-accent vcell-teal" style="animation-delay:2.75s" points="125.9,300.5 137.4,323.0 191.6,317.8 199.8,309.9 162.6,286.4"></polygon>
-            <polygon class="vcell" points="199.5,131.0 225.9,145.3 236.9,140.1 223.8,80.4 206.1,84.3 198.0,125.1"></polygon>
-            <polygon class="vcell" points="133.1,335.5 76.0,380.0 149.9,380.0"></polygon>
-            <polygon class="vcell" points="199.5,131.0 195.8,135.9 185.0,190.0 175.5,162.7 158.0,185.7 171.5,197.5 199.5,183.1 225.8,146.3 225.9,145.3"></polygon>
-            <polygon class="vcell" points="47.5,177.4 32.3,210.9 35.9,230.2 67.8,219.7 65.6,172.8 57.8,158.8 57.4,158.9"></polygon>
-            <polygon class="vcell vcell-accent vcell-maroon" style="animation-delay:3.85s" points="73.2,222.8 80.4,289.9 94.8,285.8 104.9,218.8"></polygon>
-            <polygon class="vcell" points="104.9,218.8 94.8,285.8 99.5,285.9 132.4,256.1 116.7,208.8"></polygon>
-            <polygon class="vcell" points="36.7,262.1 10.0,280.2 10.0,299.1 67.2,300.7 69.1,296.3"></polygon>
-            <polygon class="vcell" points="284.0,373.9 285.5,380.0 370.0,380.0 363.1,352.5"></polygon>
-            <polygon class="vcell vcell-accent vcell-gold" style="animation-delay:0.0s" points="65.6,172.8 67.8,219.7 73.2,222.8 104.9,218.8 116.7,208.8 117.2,208.0 99.3,195.8 95.0,210.0 78.4,181.5"></polygon>
-            <polygon class="vcell" points="173.1,358.5 191.6,317.8 137.4,323.0 136.8,329.8"></polygon>
-            <polygon class="vcell" points="173.1,358.5 136.8,329.8 133.1,335.5 149.9,380.0 172.5,380.0"></polygon>
-            <polygon class="vcell vcell-accent vcell-teal" style="animation-delay:0.55s" points="119.6,129.2 153.3,98.4 140.0,60.0 119.3,129.2"></polygon>
-            <polygon class="vcell" points="199.5,183.1 238.8,181.2 225.8,146.3"></polygon>
-            <polygon class="vcell" points="301.6,166.9 300.0,120.0 276.5,157.6"></polygon>
-            <polygon class="vcell" points="36.7,262.1 27.1,245.5 17.1,244.3 10.0,260.0 10.0,280.2"></polygon>
-            <polygon class="vcell" points="225.9,145.3 225.8,146.3 238.8,181.2 240.6,182.5 245.3,178.7 236.9,140.1"></polygon>
-            <polygon class="vcell" points="223.8,80.4 215.0,40.0 206.1,84.3"></polygon>
-            <polygon class="vcell" points="301.6,166.9 308.6,174.2 313.0,165.5 300.0,120.0 300.0,120.0"></polygon>
-            <polygon class="vcell" points="27.1,245.5 35.9,230.2 32.3,210.9 17.1,244.3"></polygon>
-            <polygon class="vcell" points="308.6,174.2 316.0,187.6 319.8,189.3 313.0,165.5"></polygon>
-            <polygon class="vcell" points="284.0,373.9 282.4,371.6 264.1,380.0 285.5,380.0"></polygon>
-            <polygon class="vcell" points="57.4,158.9 57.8,158.8 62.6,154.4 60.0,150.0 56.1,158.5"></polygon>
-            <polygon class="vcell" points="57.4,158.9 56.1,158.5 47.5,177.4"></polygon>
-            <circle class="vdot" style="animation-delay:0s" cx="84.5" cy="204.2" r="2.8"></circle>
-            <circle class="vdot" style="animation-delay:0.9s" cx="137.5" cy="96.0" r="2.8"></circle>
-            <circle class="vdot" style="animation-delay:1.8s" cx="278.4" cy="188.4" r="2.8"></circle>
-            <circle class="vdot" style="animation-delay:2.7s" cx="305.8" cy="228.8" r="2.8"></circle>
-            <circle class="vdot" style="animation-delay:0.45s" cx="314.1" cy="340.5" r="2.8"></circle>
-            <circle class="vdot" style="animation-delay:1.35s" cx="160.4" cy="306.7" r="2.8"></circle>
-            <text class="vlabel" x="330" y="345">panel_014</text>
-            <text class="vlabel" x="20" y="30">n=39</text>
-            <text class="vlabel" x="205" y="392">iter. 27</text>
-          </svg>
+  let main = '';
+  if(page==='home'){
+    main = `
+    <section class="hero-feature">
+      <div class="hero-feature-bg">
+        ${heroSvgMarkup()}
+        <div class="hero-feature-fade"></div>
+      </div>
+      <div class="hero-feature-content wrap">
+        <div id="featured-label" class="mono" style="display:none; align-items:center; gap:8px; color:var(--maroon); font-size:12px; text-transform:uppercase; letter-spacing:.1em;">★ ${t.featuredLabel}</div>
+        <h1 class="display hero-feature-title" id="featured-title">${t.h1}</h1>
+        <span id="featured-tag" class="pill tag-cyan" style="display:none; margin-top:14px;"></span>
+        <p class="lede hero-feature-desc" id="featured-desc">${t.lede}</p>
+        <div class="hero-actions">
+          <a href="#/proyectos" class="btn btn-primary">${t.ctaPrimary}</a>
+          <a href="#/contacto" class="btn">${t.ctaSecondary}</a>
         </div>
       </div>
-    </section>
-
-    <section class="block tight hairline wrap" id="proyectos-pub">
+    </section>`;
+  } else if(page==='proyectos'){
+    main = `<div class="page-content wrap">
       <div class="sec-head">
         <div><div class="sec-num mono" style="color:var(--gold);">01 / ${t.nav[0]}</div><div class="sec-title">${t.projTitle}</div></div>
         <div class="sec-sub">${t.projSub}</div>
       </div>
-    </section>
-    <div class="proj-grid" id="proj-grid-public"><div class="empty" style="grid-column:1/-1;">${t.loading}</div></div>
-
-    <section class="block hairline wrap" id="sobre-pub">
+    </div>
+    <div class="proj-grid" id="proj-grid-public"><div class="empty" style="grid-column:1/-1;">${t.loading}</div></div>`;
+  } else if(page==='identidad'){
+    main = `<div class="page-content wrap">
+      <div class="sec-head">
+        <div><div class="sec-num mono" style="color:var(--teal);">02 / ${t.nav[1]}</div><div class="sec-title">${t.divTitle||t.nav[1]}</div></div>
+        <div class="sec-sub">${t.divSub||''}</div>
+      </div>
+      <div id="identity-map-public"><div class="empty">${t.loading}</div></div>
+    </div>`;
+  } else if(page==='parametrico'){
+    main = `<div class="page-content wrap">
       <div class="about-grid">
         <div>
-          <div class="sec-num mono" style="color:var(--teal);">02 / ${t.nav[1]}</div>
+          <div class="sec-num mono" style="color:var(--maroon);">03 / ${t.nav[2]}</div>
           <div class="sec-title" style="margin-top:8px;">${t.aboutTitle}</div>
+          <div class="stats-row" style="margin-top:30px;">
+            <div class="stat"><div class="num">30+</div><div class="lbl">${t.stats[0]}</div></div>
+            <div class="stat"><div class="num">6</div><div class="lbl">${t.stats[1]}</div></div>
+            <div class="stat"><div class="num">∞</div><div class="lbl">${t.stats[2]}</div></div>
+          </div>
         </div>
         <div class="about-text">
           <p>${t.aboutP1}</p>
@@ -619,27 +677,21 @@ function renderPublicShell(t){
           </div>
         </div>
       </div>
-    </section>
-
-    <section class="block hairline wrap" id="divisiones-pub">
-      <div class="sec-head">
-        <div><div class="sec-num mono" style="color:var(--maroon);">03 / ${t.nav[2]}</div><div class="sec-title">${t.divTitle||t.nav[2]}</div></div>
-        <div class="sec-sub">${t.divSub||''}</div>
+      <div class="field-note" style="margin-top:50px; margin-bottom:18px; text-transform:uppercase; letter-spacing:.06em;">${t.servTitle} — ${t.servSub}</div>
+      <div class="serv-grid">
+        ${t.services.map((s,i)=>`<div class="serv-card"><div class="serv-num">0${i+1}</div><div><div class="serv-title">${s[0]}</div><div class="serv-desc">${s[1]}</div></div></div>`).join('')}
       </div>
-      <div id="identity-map-public"><div class="empty">${t.loading}</div></div>
-    </section>
-
-    <section class="block hairline wrap" id="servicios-pub">
+    </div>`;
+  } else if(page==='equipo'){
+    main = `<div class="page-content wrap">
       <div class="sec-head">
-        <div><div class="sec-num mono" style="color:var(--gold);">04 / ${t.nav[3]}</div><div class="sec-title">${t.servTitle}</div></div>
-        <div class="sec-sub">${t.servSub}</div>
+        <div><div class="sec-num mono" style="color:var(--gold);">04 / ${t.nav[3]}</div><div class="sec-title">${t.equipoTitle}</div></div>
+        <div class="sec-sub">${t.equipoSub}</div>
       </div>
-    </section>
-    <div class="serv-grid">
-      ${t.services.map((s,i)=>`<div class="serv-card"><div class="serv-num">0${i+1}</div><div><div class="serv-title">${s[0]}</div><div class="serv-desc">${s[1]}</div></div></div>`).join('')}
-    </div>
-
-    <section class="block wrap" id="contacto-pub">
+      <div class="card-grid" id="equipo-grid-public"><div class="empty">${t.loading}</div></div>
+    </div>`;
+  } else if(page==='contacto'){
+    main = `<div class="page-content wrap">
       <div class="contact-grid">
         <div>
           <div class="sec-num mono" style="color:var(--teal);">05 / ${t.nav[4]}</div>
@@ -652,7 +704,23 @@ function renderPublicShell(t){
           <div><span class="k">${t.metaK[2]}</span> · ${t.metaV[2]}</div>
         </div>
       </div>
-    </section>
+    </div>`;
+  }
+
+  document.getElementById('app').innerHTML = `
+  <div id="public">
+    <div class="tricolor-bar"><span style="background:var(--gold);"></span><span style="background:var(--teal);"></span><span style="background:var(--maroon);"></span></div>
+    <header><nav class="wrap">
+      <a href="#/" class="logo"><svg class="logo-mark" width="22" height="18" viewBox="0 0 52 44" xmlns="http://www.w3.org/2000/svg"><polygon points="0,44 20,4 26,20" fill="var(--gold)"></polygon><polygon points="14,44 26,4 34,44" fill="var(--teal)"></polygon><polygon points="28,20 34,10 44,44 30,44" fill="var(--maroon)"></polygon></svg> NEA</a>
+      <div class="navlinks">${navHtml}</div>
+      <div style="display:flex; align-items:center; gap:14px;">
+        <div class="lang-switch mono">
+          ${['fr','es','en'].map(l=>`<span class="lang-opt ${l===currentLang?'active':''}" onclick="setLang('${l}')">${l.toUpperCase()}</span>`).join('<span class="lang-sep">/</span>')}
+        </div>
+      </div>
+    </nav></header>
+
+    ${main}
 
     <footer class="wrap">
       <div>© 2026 NEA</div>
@@ -661,18 +729,20 @@ function renderPublicShell(t){
   </div>`;
 }
 
+
 /* ============================= ADMIN SHELL ============================= */
 const MODULES = [
   {key:'identidad', label:'Identidad NEA', idx:'00'},
   {key:'dashboard', label:'Dashboard', idx:'01'},
   {key:'proyectos', label:'Proyectos', idx:'02'},
   {key:'portafolio', label:'Portafolio', idx:'03'},
-  {key:'clientes', label:'Clientes', idx:'04'},
-  {key:'biblioteca', label:'Biblioteca GH', idx:'05'},
-  {key:'tiempo', label:'Tiempo', idx:'06'},
-  {key:'finanzas', label:'Finanzas', idx:'07'},
-  {key:'impuestos', label:'Impuestos', idx:'08'},
-  {key:'documentos', label:'Documentos', idx:'09'}
+  {key:'equipo', label:'Equipo', idx:'04'},
+  {key:'clientes', label:'Clientes', idx:'05'},
+  {key:'biblioteca', label:'Biblioteca GH', idx:'06'},
+  {key:'tiempo', label:'Tiempo', idx:'07'},
+  {key:'finanzas', label:'Finanzas', idx:'08'},
+  {key:'impuestos', label:'Impuestos', idx:'09'},
+  {key:'documentos', label:'Documentos', idx:'10'}
 ];
 
 function renderAdmin(subpath){
@@ -698,7 +768,7 @@ function renderAdmin(subpath){
         <div id="module-root"></div>
       </div>
     </div>`;
-  const renderers = {identidad:renderIdentidad, dashboard:renderDashboard, proyectos:renderProyectos, portafolio:renderPortafolio, clientes:renderClientes, biblioteca:renderBiblioteca, tiempo:renderTiempo, finanzas:renderFinanzas, impuestos:renderImpuestos, documentos:renderDocumentos};
+  const renderers = {identidad:renderIdentidad, dashboard:renderDashboard, proyectos:renderProyectos, portafolio:renderPortafolio, equipo:renderEquipo, clientes:renderClientes, biblioteca:renderBiblioteca, tiempo:renderTiempo, finanzas:renderFinanzas, impuestos:renderImpuestos, documentos:renderDocumentos};
   (renderers[modKey]||renderDashboard)(parts.slice(1));
 }
 function root(){ return document.getElementById('module-root'); }
@@ -738,10 +808,10 @@ function renderDashboard(){
 /* ============================= PROYECTOS ============================= */
 // Estado de edición por módulo — regla general: toda entrada tiene botón "Editar".
 // Paneles "añadir nuevo" — regla general: cerrados por defecto, se despliegan con un botón.
-let addOpen = {proyectos:false, clientes:false, biblioteca:false, tiempo:false, gastos:false, documentos:false, cr:false, tareas:false, pagos:false, documentosProyecto:false, divisiones:false, fases:false, puntos:false};
+let addOpen = {proyectos:false, clientes:false, biblioteca:false, tiempo:false, gastos:false, documentos:false, cr:false, tareas:false, pagos:false, documentosProyecto:false, divisiones:false, fases:false, puntos:false, equipo:false};
 function toggleAddPanel(key){ addOpen[key] = !addOpen[key]; route(); }
 
-let editingId = {clientes:null, biblioteca:null, tiempo:null, gastos:null, documentos:null, sesionesTrabajo:null, comptesRendus:null, tareas:null, pagos:null, divisiones:null, fases:null, nucleo:false, puntosFase:null};
+let editingId = {clientes:null, biblioteca:null, tiempo:null, gastos:null, documentos:null, sesionesTrabajo:null, comptesRendus:null, tareas:null, pagos:null, divisiones:null, fases:null, nucleo:false, puntosFase:null, equipo:null};
 function toggleEdit(mod, id){
   editingId[mod] = editingId[mod]===id ? null : id;
   route();
@@ -1558,6 +1628,68 @@ function savePunto(id){
   editingId.puntosFase=null; saveDB(); renderIdentidad();
 }
 
+/* ============================= EQUIPO ============================= */
+// Empieza con una sola persona (tú); mismo patrón de siempre para que escale
+// sin cambios de esquema cuando se sumen más.
+function renderEquipo(){
+  root().innerHTML = `
+    <h2 class="mod-title">Equipo</h2>
+    <p class="mod-desc">Quiénes son las personas detrás de NEA — se publica tal cual en el sitio.</p>
+    <div class="card">
+      <div class="toolbar" style="margin-bottom:${addOpen.equipo?'14px':'0'};">
+        <h3 style="font-family:'Space Grotesk',sans-serif; font-size:14px; margin:0;">Nueva persona</h3>
+        <button class="btn btn-sm" onclick="toggleAddPanel('equipo')">${addOpen.equipo?'Cerrar':'+ Nueva'}</button>
+      </div>
+      ${!addOpen.equipo ? '' : `
+      <div class="grid">
+        <div><label>Nombre</label><input id="eq-nombre"></div>
+        <div><label>Rol</label><input id="eq-rol" placeholder="Fundador · Ingeniero paramétrico"></div>
+        <div><label>Foto (URL, opcional)</label><input id="eq-foto" placeholder="https://…"></div>
+        <div><label>Orden</label><input id="eq-orden" type="number" value="${DB.equipo.length}"></div>
+      </div>
+      <div style="margin-top:10px;"><label>Bio</label><textarea id="eq-bio" rows="2"></textarea></div>
+      <button class="btn btn-primary" style="margin-top:14px;" onclick="addEquipoMiembro()">+ añadir persona</button>`}
+    </div>
+    <div class="card-grid">${[...DB.equipo].sort((a,b)=>(a.orden||0)-(b.orden||0)).map(m=>{
+      const editing = editingId.equipo===m.id;
+      return `<div class="card" style="text-align:center;">
+        ${editing ? `
+          <div class="grid" style="text-align:left;">
+            <div><label>Nombre</label><input id="e-nombre-${m.id}" value="${m.nombre}"></div>
+            <div><label>Rol</label><input id="e-rol-${m.id}" value="${m.rol||''}"></div>
+            <div><label>Foto (URL)</label><input id="e-foto-${m.id}" value="${m.foto||''}"></div>
+            <div><label>Orden</label><input id="e-orden-${m.id}" type="number" value="${m.orden||0}"></div>
+          </div>
+          <div style="margin-top:10px; text-align:left;"><label>Bio</label><textarea id="e-bio-${m.id}" rows="2">${m.bio||''}</textarea></div>
+          <div style="margin-top:14px; display:flex; gap:8px; justify-content:center;">
+            <button class="btn btn-primary btn-sm" onclick="saveEditEquipoMiembro(${m.id})">Guardar</button>
+            <button class="btn btn-sm" onclick="toggleEdit('equipo',${m.id})">Cancelar</button>
+          </div>` : `
+          <div class="team-avatar" style="margin:0 auto;">${(m.foto||'').trim() ? `<img src="${m.foto}" alt="${m.nombre}">` : (m.nombre||'?').trim().charAt(0).toUpperCase()}</div>
+          <div class="display" style="font-size:16px; font-weight:600; margin-top:14px;">${m.nombre}</div>
+          <div class="mono" style="font-size:11px; color:var(--cyan); text-transform:uppercase; margin-top:4px;">${m.rol||''}</div>
+          <div class="field-note" style="margin-top:12px; min-height:32px;">${m.bio||'sin bio'}</div>
+          <div style="margin-top:14px; display:flex; gap:8px; justify-content:center;">
+            <button class="btn btn-sm" onclick="toggleEdit('equipo',${m.id})">Editar</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteItem('equipo',${m.id})">✕</button>
+          </div>`}
+      </div>`;
+    }).join('') || `<div class="empty">Sin nadie registrado — añádete a ti mismo arriba.</div>`}
+    </div>`;
+}
+function addEquipoMiembro(){
+  const nombre = document.getElementById('eq-nombre').value.trim();
+  if(!nombre) return alert('Falta el nombre.');
+  DB.equipo.push({id:uid(DB.equipo), nombre, rol:document.getElementById('eq-rol').value, foto:document.getElementById('eq-foto').value, bio:document.getElementById('eq-bio').value, orden:parseInt(document.getElementById('eq-orden').value)||0});
+  saveDB(); renderEquipo();
+}
+function saveEditEquipoMiembro(id){
+  const m = DB.equipo.find(x=>x.id===id); if(!m) return;
+  const g = f => document.getElementById(f+'-'+id).value;
+  m.nombre=g('e-nombre').trim()||m.nombre; m.rol=g('e-rol'); m.foto=g('e-foto'); m.orden=parseInt(g('e-orden'))||0; m.bio=g('e-bio');
+  editingId.equipo=null; saveDB(); renderEquipo();
+}
+
 /* ============================= PORTAFOLIO (contenido público) ============================= */
 // Módulo dedicado a decidir qué se muestra en el sitio público y cómo — separado
 // de la gestión operativa del proyecto (eso vive en Proyectos).
@@ -2293,6 +2425,7 @@ window.togglePuntosPanel=togglePuntosPanel; window.addPunto=addPunto; window.tog
 window.setPortafolioOrden=setPortafolioOrden; window.togglePortafolioEdit=togglePortafolioEdit;
 window.setPortafolioLang=setPortafolioLang; window.savePortafolioAndClose=savePortafolioAndClose;
 window.setPortafolioPreviewLang=setPortafolioPreviewLang;
+window.addEquipoMiembro=addEquipoMiembro; window.saveEditEquipoMiembro=saveEditEquipoMiembro;
 </script>
 </body>
 </html>
