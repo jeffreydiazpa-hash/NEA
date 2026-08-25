@@ -383,7 +383,7 @@ const I18N = {
     aboutP2:"Nous ne livrons pas une forme finale, nous livrons le système qui la génère. Chaque définition n'est pas seulement un résultat, c'est un outil que l'équipe projet peut continuer à utiliser.",
     skillSoft:'Logiciels', skillCode:'Code',
     lvlAdv:'avancé', lvlInt:'intermédiaire',
-    equipoTitle:"L'équipe", equipoSub:"Aujourd'hui une seule personne, demain une équipe complète.",
+    equipoTitle:"L'équipe", equipoSub:"",
     servTitle:'Comment nous travaillons', servSub:"Pour les bureaux d'architecture, d'ingénierie et les entreprises BTP.",
     services:[
       ['Conception paramétrique de projet','Façades, structures et géométrie complexe, du concept au modèle final.'],
@@ -411,7 +411,7 @@ const I18N = {
     aboutP2:'No entregamos una forma final, entregamos el sistema que la genera. Cada definición no es solo un resultado, es una herramienta que el equipo de proyecto puede seguir usando.',
     skillSoft:'Software', skillCode:'Código',
     lvlAdv:'avanzado', lvlInt:'intermedio',
-    equipoTitle:'El equipo', equipoSub:'Hoy una sola persona, mañana un equipo completo.',
+    equipoTitle:'El equipo', equipoSub:'',
     servTitle:'Cómo trabajamos', servSub:'Para estudios de arquitectura, ingeniería y constructoras BTP.',
     services:[
       ['Diseño paramétrico de proyecto','Fachadas, estructuras y geometría compleja, de criterio a modelo final.'],
@@ -439,7 +439,7 @@ const I18N = {
     aboutP2:"We don't deliver a final shape, we deliver the system that generates it. Every definition isn't just a result, it's a tool the project team can keep using.",
     skillSoft:'Software', skillCode:'Code',
     lvlAdv:'advanced', lvlInt:'intermediate',
-    equipoTitle:'The team', equipoSub:'One person today, a full team tomorrow.',
+    equipoTitle:'The team', equipoSub:'',
     servTitle:'How we work', servSub:'For architecture and engineering firms and construction companies.',
     services:[
       ['Parametric project design','Facades, structures and complex geometry, from concept to final model.'],
@@ -497,6 +497,7 @@ function renderFeaturedProject(items, t){
   const descEl = document.getElementById('featured-desc');
   const tagEl = document.getElementById('featured-tag');
   const labelEl = document.getElementById('featured-label');
+  const photoEl = document.getElementById('featured-photo');
   if(!titleEl) return;
   const featured = items.find(p=>p.destacado);
   if(featured){
@@ -505,11 +506,13 @@ function renderFeaturedProject(items, t){
     titleEl.textContent = featured.nombre;
     if(descEl) descEl.textContent = loc.desc || '';
     if(tagEl){ tagEl.textContent = loc.tag || featured.tipo || ''; tagEl.style.display = (loc.tag||featured.tipo) ? 'inline-block' : 'none'; }
+    if(photoEl){ if(featured.fotoUrl){ photoEl.src = featured.fotoUrl; photoEl.style.display = 'block'; } else { photoEl.style.display = 'none'; } }
   } else {
     if(labelEl) labelEl.style.display = 'none';
     titleEl.textContent = t.h1;
     if(descEl) descEl.textContent = t.lede;
     if(tagEl) tagEl.style.display = 'none';
+    if(photoEl) photoEl.style.display = 'none';
   }
 }
 function buildPublicProjGrid(publicables, t){
@@ -517,7 +520,7 @@ function buildPublicProjGrid(publicables, t){
     const loc = p[currentLang] || p.fr || {};
     return `
         <div class="proj-card">
-          <div class="proj-thumb">[ imagen del proyecto ]${p.destacado?'<span style="position:absolute; top:10px; right:10px; color:var(--maroon); font-size:14px;">★</span>':''}</div>
+          <div class="proj-thumb">${p.fotoUrl ? `<img src="${p.fotoUrl}" alt="${p.nombre}" style="width:100%; height:100%; object-fit:cover;">` : '[ imagen del proyecto ]'}${p.destacado?'<span style="position:absolute; top:10px; right:10px; color:var(--maroon); font-size:14px;">★</span>':''}</div>
           <div class="proj-body">
             <div class="proj-tag">${loc.tag||p.tipo}</div>
             <div class="proj-name">${p.nombre}</div>
@@ -532,7 +535,7 @@ function buildEquipoGrid(equipo){
   const sorted = [...equipo].sort((a,b)=>(a.orden||0)-(b.orden||0));
   return `<div class="card-grid" id="equipo-grid-public">${sorted.length ? sorted.map(m=>`
     <div class="card" style="text-align:center;">
-      <div class="team-avatar">${(m.foto||'').trim() ? `<img src="${m.foto}" alt="${m.nombre}">` : (m.nombre||'?').trim().charAt(0).toUpperCase()}</div>
+      <div class="team-avatar">${(m.foto||'').trim() ? `<img src="${m.foto}" alt="${m.nombre}" onerror="this.outerHTML='${(m.nombre||'?').trim().charAt(0).toUpperCase()}'">` : (m.nombre||'?').trim().charAt(0).toUpperCase()}</div>
       <div class="display" style="font-size:16px; font-weight:600; margin-top:14px;">${m.nombre}</div>
       <div class="mono" style="font-size:11px; color:var(--cyan); text-transform:uppercase; letter-spacing:.04em; margin-top:4px;">${m.rol||''}</div>
       <div class="serif" style="font-size:13.5px; color:var(--text-dim); margin-top:12px; line-height:1.6;">${m.bio||''}</div>
@@ -611,6 +614,7 @@ function renderPublicShell(t, page){
     <section class="hero-feature">
       <div class="hero-feature-bg">
         ${heroSvgMarkup()}
+        <img id="featured-photo" style="display:none; position:absolute; inset:0; width:100%; height:100%; object-fit:cover;" alt="">
         <div class="hero-feature-fade"></div>
       </div>
       <div class="hero-feature-content wrap">
@@ -686,7 +690,7 @@ function renderPublicShell(t, page){
     main = `<div class="page-content wrap">
       <div class="sec-head">
         <div><div class="sec-num mono" style="color:var(--gold);">04 / ${t.nav[3]}</div><div class="sec-title">${t.equipoTitle}</div></div>
-        <div class="sec-sub">${t.equipoSub}</div>
+        ${t.equipoSub ? `<div class="sec-sub">${t.equipoSub}</div>` : ''}
       </div>
       <div class="card-grid" id="equipo-grid-public"><div class="empty">${t.loading}</div></div>
     </div>`;
@@ -1671,7 +1675,7 @@ function renderEquipo(){
             <button class="btn btn-primary btn-sm" id="e-submit-${m.id}" onclick="saveEditEquipoMiembro(${m.id})">Guardar</button>
             <button class="btn btn-sm" onclick="toggleEdit('equipo',${m.id})">Cancelar</button>
           </div>` : `
-          <div class="team-avatar" style="margin:0 auto;">${(m.foto||'').trim() ? `<img src="${m.foto}" alt="${m.nombre}">` : (m.nombre||'?').trim().charAt(0).toUpperCase()}</div>
+          <div class="team-avatar" style="margin:0 auto;">${(m.foto||'').trim() ? `<img src="${m.foto}" alt="${m.nombre}" onerror="this.outerHTML='${(m.nombre||'?').trim().charAt(0).toUpperCase()}'">` : (m.nombre||'?').trim().charAt(0).toUpperCase()}</div>
           <div class="display" style="font-size:16px; font-weight:600; margin-top:14px;">${m.nombre}</div>
           <div class="mono" style="font-size:11px; color:var(--cyan); text-transform:uppercase; margin-top:4px;">${m.rol||''}</div>
           <div class="field-note" style="margin-top:12px; min-height:32px;">${m.bio||'sin bio'}</div>
@@ -1758,7 +1762,7 @@ function renderPortafolio(){
 }
 function proyectoToPublicShape(p){
   return {
-    nombre: p.nombre, tipo: p.tipo, destacado: p.destacado,
+    nombre: p.nombre, tipo: p.tipo, destacado: p.destacado, fotoUrl: p.fotoUrl||'',
     fr: {tag:p.publicTag, desc:p.publicDesc, tools:p.publicTools},
     es: {tag:p.publicTag_es, desc:p.publicDesc_es, tools:p.publicTools_es},
     en: {tag:p.publicTag_en, desc:p.publicDesc_en, tools:p.publicTools_en}
@@ -1788,7 +1792,16 @@ function savePortafolioLangFields(id){
   if(tools!==undefined) p['publicTools'+suf]=tools;
   if(desc!==undefined) p['publicDesc'+suf]=desc;
 }
-function savePortafolioAndClose(id){ savePortafolioLangFields(id); saveDB(); portafolioEditId=null; renderPortafolio(); }
+function savePortafolioAndClose(id){ savePortafolioLangFieldsAndPhoto(id); }
+async function savePortafolioLangFieldsAndPhoto(id){
+  savePortafolioLangFields(id);
+  const p = DB.proyectos.find(x=>x.id===id);
+  const btn = document.getElementById('pf-submit-'+id);
+  if(btn){ btn.disabled = true; btn.textContent = 'guardando…'; }
+  const uploaded = await uploadFileToDrive('pf-fotofile-'+id, p ? p.nombre : 'Sin proyecto', 'Fotos', true);
+  if(uploaded && uploaded.embedUrl && p) p.fotoUrl = uploaded.embedUrl;
+  saveDB(); portafolioEditId=null; renderPortafolio();
+}
 function renderPortafolioEditForm(p){
   const L = portafolioLang, suf = L==='fr' ? '' : '_'+L;
   const tag = p['publicTag'+suf]||'', desc = p['publicDesc'+suf]||'', tools = p['publicTools'+suf]||'';
@@ -1804,8 +1817,14 @@ function renderPortafolioEditForm(p){
       <div style="grid-column:span 2;"><label>Herramientas — separadas por coma (${L.toUpperCase()})</label><input id="pf-tools-${p.id}" value="${tools}"></div>
     </div>
     <div style="margin-top:10px;"><label>Descripción pública (${L.toUpperCase()})</label><textarea id="pf-desc-${p.id}" rows="2">${desc}</textarea></div>
+    <div style="margin-top:16px; padding-top:14px; border-top:1px dashed var(--border);">
+      <label style="color:var(--cyan);">Foto del proyecto (una sola, no depende del idioma)</label>
+      ${p.fotoUrl ? `<div style="margin:8px 0;"><img src="${p.fotoUrl}" style="max-width:220px; max-height:140px; border:1px solid var(--border);"></div>` : ''}
+      <input type="file" id="pf-fotofile-${p.id}" accept="image/*">
+      <p class="field-note" style="margin-top:4px;">Se sube a Drive y se hace pública automáticamente — la ve cualquier visitante del sitio.</p>
+    </div>
     <div style="margin-top:14px; display:flex; gap:10px;">
-      <button class="btn btn-primary" onclick="savePortafolioAndClose(${p.id})">Guardar cambios</button>
+      <button class="btn btn-primary" id="pf-submit-${p.id}" onclick="savePortafolioAndClose(${p.id})">Guardar cambios</button>
       <button class="btn" onclick="togglePortafolioEdit(${p.id})">Cancelar</button>
     </div>
   </div></td></tr>`;
