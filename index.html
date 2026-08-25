@@ -1644,11 +1644,14 @@ function renderEquipo(){
       <div class="grid">
         <div><label>Nombre</label><input id="eq-nombre"></div>
         <div><label>Rol</label><input id="eq-rol" placeholder="Fundador · Ingeniero paramétrico"></div>
-        <div><label>Foto (URL, opcional)</label><input id="eq-foto" placeholder="https://…"></div>
         <div><label>Orden</label><input id="eq-orden" type="number" value="${DB.equipo.length}"></div>
       </div>
       <div style="margin-top:10px;"><label>Bio</label><textarea id="eq-bio" rows="2"></textarea></div>
-      <button class="btn btn-primary" style="margin-top:14px;" onclick="addEquipoMiembro()">+ añadir persona</button>`}
+      <div class="grid" style="margin-top:10px;">
+        <div><label>Foto — subir archivo (se hace pública, la ve cualquier visitante)</label><input type="file" id="eq-fotofile" accept="image/*"></div>
+        <div><label>o pegar una URL directa (opcional, si ya tienes una)</label><input id="eq-foto" placeholder="https://…"></div>
+      </div>
+      <button class="btn btn-primary" style="margin-top:14px;" id="eq-submit-btn" onclick="addEquipoMiembro()">+ añadir persona</button>`}
     </div>
     <div class="card-grid">${[...DB.equipo].sort((a,b)=>(a.orden||0)-(b.orden||0)).map(m=>{
       const editing = editingId.equipo===m.id;
@@ -1657,12 +1660,15 @@ function renderEquipo(){
           <div class="grid" style="text-align:left;">
             <div><label>Nombre</label><input id="e-nombre-${m.id}" value="${m.nombre}"></div>
             <div><label>Rol</label><input id="e-rol-${m.id}" value="${m.rol||''}"></div>
-            <div><label>Foto (URL)</label><input id="e-foto-${m.id}" value="${m.foto||''}"></div>
             <div><label>Orden</label><input id="e-orden-${m.id}" type="number" value="${m.orden||0}"></div>
           </div>
           <div style="margin-top:10px; text-align:left;"><label>Bio</label><textarea id="e-bio-${m.id}" rows="2">${m.bio||''}</textarea></div>
+          <div class="grid" style="margin-top:10px; text-align:left;">
+            <div><label>Cambiar foto (opcional)</label><input type="file" id="e-fotofile-${m.id}" accept="image/*"></div>
+            <div><label>o pegar URL directa</label><input id="e-foto-${m.id}" value="${m.foto||''}"></div>
+          </div>
           <div style="margin-top:14px; display:flex; gap:8px; justify-content:center;">
-            <button class="btn btn-primary btn-sm" onclick="saveEditEquipoMiembro(${m.id})">Guardar</button>
+            <button class="btn btn-primary btn-sm" id="e-submit-${m.id}" onclick="saveEditEquipoMiembro(${m.id})">Guardar</button>
             <button class="btn btn-sm" onclick="toggleEdit('equipo',${m.id})">Cancelar</button>
           </div>` : `
           <div class="team-avatar" style="margin:0 auto;">${(m.foto||'').trim() ? `<img src="${m.foto}" alt="${m.nombre}">` : (m.nombre||'?').trim().charAt(0).toUpperCase()}</div>
@@ -1677,16 +1683,25 @@ function renderEquipo(){
     }).join('') || `<div class="empty">Sin nadie registrado — añádete a ti mismo arriba.</div>`}
     </div>`;
 }
-function addEquipoMiembro(){
+async function addEquipoMiembro(){
   const nombre = document.getElementById('eq-nombre').value.trim();
   if(!nombre) return alert('Falta el nombre.');
-  DB.equipo.push({id:uid(DB.equipo), nombre, rol:document.getElementById('eq-rol').value, foto:document.getElementById('eq-foto').value, bio:document.getElementById('eq-bio').value, orden:parseInt(document.getElementById('eq-orden').value)||0});
+  const btn = document.getElementById('eq-submit-btn');
+  if(btn){ btn.disabled = true; btn.textContent = 'subiendo…'; }
+  const uploaded = await uploadFileToDrive('eq-fotofile', 'Equipo', 'Fotos', true);
+  const foto = (uploaded && uploaded.embedUrl) ? uploaded.embedUrl : document.getElementById('eq-foto').value;
+  DB.equipo.push({id:uid(DB.equipo), nombre, rol:document.getElementById('eq-rol').value, foto, bio:document.getElementById('eq-bio').value, orden:parseInt(document.getElementById('eq-orden').value)||0});
   saveDB(); renderEquipo();
 }
-function saveEditEquipoMiembro(id){
+async function saveEditEquipoMiembro(id){
   const m = DB.equipo.find(x=>x.id===id); if(!m) return;
+  const btn = document.getElementById('e-submit-'+id);
+  if(btn){ btn.disabled = true; btn.textContent = 'subiendo…'; }
+  const uploaded = await uploadFileToDrive('e-fotofile-'+id, 'Equipo', 'Fotos', true);
   const g = f => document.getElementById(f+'-'+id).value;
-  m.nombre=g('e-nombre').trim()||m.nombre; m.rol=g('e-rol'); m.foto=g('e-foto'); m.orden=parseInt(g('e-orden'))||0; m.bio=g('e-bio');
+  m.nombre=g('e-nombre').trim()||m.nombre; m.rol=g('e-rol'); m.orden=parseInt(g('e-orden'))||0; m.bio=g('e-bio');
+  if(uploaded && uploaded.embedUrl) m.foto = uploaded.embedUrl;
+  else if(g('e-foto')) m.foto = g('e-foto');
   editingId.equipo=null; saveDB(); renderEquipo();
 }
 
@@ -2090,7 +2105,7 @@ function addGasto(){
 // Sube el archivo seleccionado en <inputId> a Drive, dentro de
 // Root/<proyecto>/<tipo>/. Devuelve {driveUrl, driveFileId} o null si no hay
 // archivo seleccionado (el documento se registra igual, solo sin archivo).
-async function uploadFileToDrive(inputId, proyectoNombre, tipo){
+async function uploadFileToDrive(inputId, proyectoNombre, tipo, makePublic){
   const input = document.getElementById(inputId);
   if(!input || !input.files || !input.files[0]) return null;
   const file = input.files[0];
@@ -2102,9 +2117,10 @@ async function uploadFileToDrive(inputId, proyectoNombre, tipo){
   });
   const r = await gasPost('uploadDocument', {token: session.token, data:{
     proyectoNombre: proyectoNombre || 'Sin proyecto', tipo: tipo || 'General',
-    filename: file.name, mimeType: file.type || 'application/octet-stream', base64
+    filename: file.name, mimeType: file.type || 'application/octet-stream', base64,
+    makePublic: !!makePublic
   }});
-  if(r.ok) return {driveUrl: r.data.url, driveFileId: r.data.fileId};
+  if(r.ok) return {driveUrl: r.data.url, driveFileId: r.data.fileId, embedUrl: r.data.embedUrl||''};
   alert('No se pudo subir el archivo a Drive: ' + (r.error || 'error desconocido'));
   return null;
 }
