@@ -6,7 +6,7 @@
 <title>NEA · Bureau d'Études Paramétrique</title>
 <link rel="preconnect" href="https://fonts.googleapis.com/">
 <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin="">
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&family=Newsreader:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#0c0f10; --panel:#14181a; --panel-2:#191e20; --grid-line:#20262a;
@@ -32,15 +32,21 @@ body{
 a{color:inherit; text-decoration:none;}
 .mono{font-family:'JetBrains Mono', monospace;}
 .display{font-family:'Space Grotesk', sans-serif;}
-.serif{font-family:'Newsreader', serif;}
+.serif{font-family:'IBM Plex Sans', sans-serif;}
 ::selection{background:var(--cyan); color:#0c0f10;}
 
-/* ============================= TEMA CLARO/EDITORIAL — solo sitio público ============================= */
+/* ============================= TEMA CLARO/EDITORIAL — solo sitio público =============================
+   Sistema tipográfico: Space Grotesk (títulos grandes) + IBM Plex Sans (cuerpo,
+   navegación, UI) + IBM Plex Mono (SOLO anotaciones técnicas reales — fechas,
+   tags, cifras — nunca decorativo). Nada de Inter/Roboto genéricos, nada de
+   serif editorial "boutique". */
 #public{
   --bg:#f6f1e7; --panel:#ffffff; --panel-2:#efe7d6; --border:#e2d8c4;
   --text:#211d18; --text-dim:#6c6355; --text-faint:#a89d89;
   background:var(--bg); color:var(--text); min-height:100vh;
+  font-family:'IBM Plex Sans', sans-serif;
 }
+#public .mono{font-family:'IBM Plex Mono', monospace;}
 
 /* ---------- shared bits ---------- */
 .btn{font-family:'JetBrains Mono', monospace; font-size:12px; border:1px solid var(--border); background:transparent; color:var(--text); padding:8px 14px; cursor:pointer; transition:all .15s; border-radius:1px;}
@@ -75,7 +81,7 @@ label{display:block; font-family:'JetBrains Mono', monospace; font-size:10.5px; 
 }
 .identity-core .lbl{font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--cyan); text-transform:uppercase; letter-spacing:.14em;}
 .identity-core .name{font-family:'Space Grotesk',sans-serif; font-size:24px; font-weight:600; margin-top:8px; letter-spacing:-.01em;}
-.identity-core .desc{font-family:'Newsreader', serif; font-size:14px; color:var(--text-dim); margin-top:8px; line-height:1.55;}
+.identity-core .desc{font-size:14px; color:var(--text-dim); margin-top:8px; line-height:1.55;}
 .identity-core::after{content:''; position:absolute; left:50%; bottom:-32px; width:1px; height:32px; background:var(--cyan); transform:translateX(-50%);}
 .identity-branches-wrap{display:flex; justify-content:center; width:100%; overflow-x:auto;}
 .identity-branches{display:inline-flex; gap:32px; border-top:1px solid var(--border); padding-top:32px; position:relative;}
@@ -89,7 +95,7 @@ label{display:block; font-family:'JetBrains Mono', monospace; font-size:10.5px; 
 .division-card:hover{transform:translateY(-2px);}
 .division-card .idx{position:absolute; top:8px; left:10px; font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-faint);}
 .division-card .name{font-family:'Space Grotesk',sans-serif; font-size:16px; font-weight:600; margin-top:6px;}
-.division-card .desc{font-family:'Newsreader', serif; font-size:13px; color:var(--text-dim); margin-top:8px; line-height:1.6;}
+.division-card .desc{font-size:13px; color:var(--text-dim); margin-top:8px; line-height:1.6;}
 .phase-list{width:100%; margin-top:16px; padding-top:16px; border-top:1px dashed var(--border); display:flex; flex-direction:column; gap:8px;}
 .phase-item{border:1px solid var(--border); background:var(--panel-2); padding:8px 10px; text-align:left; position:relative;}
 @media (max-width:820px){
@@ -124,7 +130,8 @@ h2.mod-title{font-family:'Space Grotesk', sans-serif; font-size:20px; font-weigh
 
 /* ---------- public site ---------- */
 .wrap{max-width:1180px; margin:0 auto; padding:0 32px;}
-#public header{position:fixed; top:4px; left:0; right:0; z-index:100; backdrop-filter:blur(10px); background:rgba(246,241,231,.82); border-bottom:1px solid var(--border);}
+#public header{position:fixed; top:4px; left:0; right:0; z-index:100; border-bottom:1px solid transparent; transition:background .25s, border-color .25s, backdrop-filter .25s;}
+#public header.is-scrolled{backdrop-filter:blur(10px); background:rgba(246,241,231,.86); border-bottom-color:var(--border);}
 #public nav.wrap{display:flex; align-items:center; justify-content:space-between; height:64px;}
 .logo{font-family:'Space Grotesk', sans-serif; font-weight:600; font-size:15px; display:flex; align-items:center; gap:9px; letter-spacing:.01em;}
 .logo-mark{display:block;}
@@ -138,61 +145,66 @@ h2.mod-title{font-family:'Space Grotesk', sans-serif; font-size:20px; font-weigh
 .lang-opt:hover{color:var(--text);}
 .lang-opt.active{color:var(--cyan);}
 .lang-sep{color:var(--border);}
-#public .hero-feature{position:relative; min-height:88vh; display:flex; align-items:flex-end; padding-top:68px; overflow:hidden;}
+#public .hero-feature{position:relative; min-height:92vh; display:flex; flex-direction:column; overflow:hidden; cursor:crosshair;}
 .hero-feature-bg{position:absolute; inset:0; z-index:0;}
-.hero-feature-bg svg{width:100%; height:100%;}
-.hero-feature-fade{position:absolute; inset:0; background:linear-gradient(180deg, var(--bg) 0%, rgba(246,241,231,.55) 35%, var(--bg) 92%);}
-.hero-feature-content{position:relative; z-index:1; padding-bottom:64px;}
-.hero-feature-title{font-family:'Space Grotesk',sans-serif; font-size:clamp(42px,8vw,104px); font-weight:600; letter-spacing:-.02em; line-height:.98; margin-top:10px; max-width:900px;}
-.hero-feature-desc{font-family:'Newsreader', serif; font-style:italic; font-size:19px; color:var(--text-dim); margin-top:18px; max-width:560px; line-height:1.5;}
+.hero-feature-bg svg{width:100%; height:100%; display:block;}
+.hero-mesh-line{fill:none; stroke:var(--text); stroke-opacity:.28; stroke-width:1;}
+.hero-mesh-dot{fill:var(--teal);}
+.hero-mesh-panel{fill:var(--teal); stroke:var(--text); stroke-opacity:.3; stroke-width:.6;}
+.hero-attractor-dash{width:14px; height:2px; display:inline-block; background:var(--maroon); margin-right:2px;}
+.hero-feature-fade{position:absolute; inset:0; background:linear-gradient(180deg, transparent 0%, transparent 60%, var(--bg) 96%); pointer-events:none;}
+.hero-feature-content{position:relative; z-index:1; width:100%; padding-bottom:74px; margin-top:auto;}
+.hero-feature-title{font-family:'Space Grotesk',sans-serif; font-size:clamp(38px,7vw,86px); font-weight:600; letter-spacing:-.02em; line-height:1.02; max-width:640px;
+  transform:translateY(calc(var(--flatten, 0) * -30px)); opacity:calc(1 - var(--flatten, 0) * .4); transition:opacity .05s linear;}
+.hero-feature-desc{font-size:15px; font-weight:400; color:var(--text-dim); margin-top:16px; max-width:420px; line-height:1.5;}
+.hero-hud{position:absolute; z-index:1; font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--text-faint); letter-spacing:.03em; pointer-events:none;}
+.hero-hud-tl{top:100px; left:32px;}
+.hero-hud-tr{top:100px; right:32px; text-align:right;}
+.hero-hud-br{bottom:24px; right:32px; text-align:right;}
+.hero-scrollcue{position:absolute; z-index:1; bottom:24px; left:50%; transform:translateX(-50%); font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.1em; color:var(--text-faint); text-transform:uppercase; opacity:calc(1 - var(--flatten, 0) * 2);}
 .hero-band{padding:36px 0 60px;}
 .eyebrow{font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--orange); letter-spacing:.12em; text-transform:uppercase; margin-bottom:20px; display:flex; align-items:center; gap:10px;}
 .eyebrow::before{content:''; width:24px; height:1px; background:var(--orange);}
 .tricolor-bar{position:fixed; top:0; left:0; right:0; height:4px; z-index:101; display:flex;}
 .tricolor-bar span{flex:1;}
 h1.display{font-size:clamp(34px,5vw,58px); line-height:1.08; font-weight:600; letter-spacing:-.02em; max-width:760px;}
-#public .lede{margin-top:22px; font-family:'Newsreader', serif; font-size:18px; font-style:italic; line-height:1.55; color:var(--text-dim); max-width:520px;}
+#public .lede{margin-top:22px; font-size:16px; line-height:1.6; color:var(--text-dim); max-width:520px;}
 .hero-actions{display:flex; gap:14px; margin-top:32px;}
 .stats-row{display:flex; gap:36px; margin-top:48px; padding-top:24px; border-top:1px solid var(--border);}
 .stat .num{font-family:'Space Grotesk',sans-serif; font-size:24px; font-weight:600;}
 .stat .lbl{font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.06em; margin-top:4px;}
-.graph-box{position:relative; aspect-ratio:1/1.05; border:1px solid var(--border); background:var(--panel);}
-.graph-box .tag{position:absolute; top:14px; left:14px; font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-faint);}
-.graph-box .tag2{position:absolute; bottom:14px; right:14px; font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-faint); text-align:right;}
-svg.graph{width:100%; height:100%; display:block;}
-.vcell{fill:none; stroke:var(--border); stroke-width:.75; stroke-opacity:.7;}
-.vcell-accent{stroke-width:1.6; fill-opacity:.05; animation:cellPulse 3.3s ease-in-out infinite;}
-.vcell-gold{stroke:var(--gold); fill:var(--gold);}
-.vcell-teal{stroke:var(--teal); fill:var(--teal);}
-.vcell-maroon{stroke:var(--maroon); fill:var(--maroon);}
-@keyframes cellPulse{
-  0%, 100%{fill-opacity:.05; stroke-opacity:.55;}
-  40%{fill-opacity:.32; stroke-opacity:1;}
-}
-.vdot{fill:var(--teal); animation:dotPulse 2.4s ease-in-out infinite;}
-@keyframes dotPulse{
-  0%, 100%{r:1.6; opacity:.5;}
-  50%{r:3.4; opacity:1;}
-}
-.vlabel{font-family:'JetBrains Mono',monospace; font-size:9px; fill:var(--text-faint); letter-spacing:.02em;}
-@media (prefers-reduced-motion: reduce){.vcell-accent, .vdot{animation:none;}}
 section.block{padding:100px 0;}
 .hairline{border-top:1px solid var(--border);}
 .sec-head{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:40px; flex-wrap:wrap; gap:14px;}
 .sec-num{font-family:'JetBrains Mono', monospace; color:var(--text-faint); font-size:12px;}
 .sec-title{font-family:'Space Grotesk', sans-serif; font-size:clamp(24px,3vw,34px); font-weight:600;}
 .sec-sub{font-size:13.5px; color:var(--text-dim); max-width:380px;}
-.proj-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--border);}
-.proj-card{background:var(--bg);}
-.proj-thumb{position:relative; aspect-ratio:4/3; background:repeating-linear-gradient(135deg, var(--panel-2) 0px, var(--panel-2) 2px, var(--panel) 2px, var(--panel) 26px); display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--text-faint); border-bottom:1px solid var(--border);}
-.proj-body{padding:20px;}
-.proj-tag{font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--cyan); text-transform:uppercase; letter-spacing:.06em;}
-.proj-name{font-family:'Space Grotesk', sans-serif; font-size:17px; font-weight:600; margin-top:6px;}
-.proj-desc{font-family:'Newsreader', serif; font-size:14px; color:var(--text-dim); margin-top:8px; line-height:1.6;}
-.proj-tools{display:flex; flex-wrap:wrap; gap:6px; margin-top:14px;}
-.proj-tools span{font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--text-faint); border:1px solid var(--border); padding:3px 8px;}
+.proj-row{display:grid; gap:36px; padding:64px 0; border-bottom:1px solid var(--border); align-items:end;}
+.proj-row:first-child{padding-top:24px;}
+.proj-pattern-a{grid-template-columns:1fr;}
+.proj-pattern-a .proj-media{aspect-ratio:21/8;}
+.proj-pattern-b{grid-template-columns:1.3fr 1fr;}
+.proj-pattern-b .proj-media{aspect-ratio:3/4;}
+.proj-pattern-c{grid-template-columns:1fr 1.3fr;}
+.proj-pattern-c .proj-media{aspect-ratio:4/3;}
+.proj-pattern-c .proj-media{order:2;}
+.proj-media{position:relative; overflow:hidden; background:repeating-linear-gradient(135deg, var(--panel-2) 0px, var(--panel-2) 2px, var(--panel) 2px, var(--panel) 26px);}
+.proj-media img{width:100%; height:100%; object-fit:cover; display:block;}
+.proj-thumb-empty{width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--text-faint);}
+.proj-star{position:absolute; top:16px; right:16px; z-index:2; color:var(--maroon); font-size:16px; background:var(--bg); width:28px; height:28px; display:flex; align-items:center; justify-content:center;}
+.proj-tagline{font-family:'IBM Plex Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-faint); display:flex; align-items:center; gap:8px;}
+.proj-dash{width:16px; height:2px; display:inline-block;}
+.proj-name{font-family:'Space Grotesk', sans-serif; font-size:clamp(22px,2.4vw,32px); font-weight:600; margin-top:10px; letter-spacing:-.01em;}
+.proj-desc{font-size:14px; color:var(--text-dim); margin-top:12px; line-height:1.65; max-width:52ch;}
+.proj-tools{display:flex; flex-wrap:wrap; gap:16px; margin-top:16px;}
+.proj-tools span{font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:var(--text-faint);}
 .about-grid{display:grid; grid-template-columns:.9fr 1.1fr; gap:56px; align-items:start;}
-.about-text p{font-family:'Newsreader', serif; font-size:16px; line-height:1.7; color:var(--text-dim); margin-bottom:16px;}
+.about-grid > div:first-child{position:sticky; top:130px;}
+@media (max-width:880px){.about-grid > div:first-child{position:static;}}
+.reveal{opacity:0; transform:translateY(22px); transition:opacity .6s ease, transform .6s ease;}
+.reveal.is-visible{opacity:1; transform:translateY(0);}
+@media (prefers-reduced-motion: reduce){.reveal{opacity:1; transform:none; transition:none;}}
+.about-text p{font-size:15px; line-height:1.7; color:var(--text-dim); margin-bottom:16px;}
 .skill-cols{display:grid; grid-template-columns:1fr 1fr; gap:28px;}
 .skill-group h4{font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.06em; margin-bottom:12px;}
 .skill-group ul{list-style:none;}
@@ -202,18 +214,18 @@ section.block{padding:100px 0;}
 .serv-card{background:var(--bg); padding:26px 22px; min-height:190px; display:flex; flex-direction:column; justify-content:space-between;}
 .serv-num{font-family:'JetBrains Mono',monospace; color:var(--orange); font-size:12px;}
 .serv-title{font-family:'Space Grotesk',sans-serif; font-size:16px; font-weight:600; margin-top:14px; line-height:1.3;}
-.serv-desc{font-family:'Newsreader', serif; font-size:13.5px; color:var(--text-dim); margin-top:8px; line-height:1.6;}
+.serv-desc{font-size:13px; color:var(--text-dim); margin-top:8px; line-height:1.6;}
 .contact-grid{display:grid; grid-template-columns:1.2fr .8fr; gap:50px; align-items:end;}
-.contact-title{font-family:'Newsreader', serif; font-style:italic; font-weight:500; font-size:clamp(28px,4.5vw,48px); line-height:1.15; letter-spacing:-.01em;}
+.contact-title{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:clamp(28px,4.5vw,48px); line-height:1.1; letter-spacing:-.02em;}
 .contact-email{display:inline-block; margin-top:24px; font-family:'JetBrains Mono',monospace; font-size:15px; color:var(--cyan); border-bottom:1px solid var(--cyan); padding-bottom:4px;}
 .contact-meta{font-family:'JetBrains Mono',monospace; font-size:11.5px; color:var(--text-faint); line-height:2;}
 .contact-meta .k{color:var(--text-dim);}
 #public footer{padding:32px 0; border-top:1px solid var(--border); display:flex; justify-content:space-between; font-size:12px; color:var(--text-faint); font-family:'JetBrains Mono',monospace; flex-wrap:wrap; gap:12px;}
 #public footer a{color:var(--text-dim); margin-left:16px; transition:color .2s;}
 #public footer a:hover{color:var(--cyan);}
-@media (max-width:880px){.hero-inner{grid-template-columns:1fr;} .graph-box{order:-1; aspect-ratio:16/10;} .about-grid,.contact-grid{grid-template-columns:1fr; gap:32px;}}
-@media (max-width:800px){.proj-grid,.serv-grid{grid-template-columns:1fr 1fr;} .navlinks{display:none;} .stats-row{flex-wrap:wrap; row-gap:16px;}}
-@media (max-width:560px){.proj-grid,.serv-grid{grid-template-columns:1fr;}}
+@media (max-width:880px){.hero-inner{grid-template-columns:1fr;} .graph-box{order:-1; aspect-ratio:16/10;} .about-grid,.contact-grid{grid-template-columns:1fr; gap:32px;} .proj-row{grid-template-columns:1fr !important;} .proj-pattern-c .proj-media{order:0;} .proj-pattern-a .proj-media{aspect-ratio:4/3;}}
+@media (max-width:800px){.serv-grid{grid-template-columns:1fr 1fr;} .navlinks{display:none;} .stats-row{flex-wrap:wrap; row-gap:16px;}}
+@media (max-width:560px){.serv-grid{grid-template-columns:1fr;}}
 
 
 /* ---------- admin shell ---------- */
@@ -313,6 +325,12 @@ function uid(list){ return list.length ? Math.max(...list.map(x=>x.id))+1 : 1; }
 
 /* ============================= ROUTER (hash, como #karen en Fais Cute) ============================= */
 window.addEventListener('hashchange', route);
+// Header público: transparente arriba, sólido al bajar — nav integrada, no un
+// bloque pesado permanente.
+window.addEventListener('scroll', ()=>{
+  const h = document.querySelector('#public header');
+  if(h) h.classList.toggle('is-scrolled', window.scrollY > 40);
+}, {passive:true});
 window.addEventListener('load', route);
 function navigate(path){ location.hash = path; } // path sin '#', ej. 'admin/dashboard'
 function adminSubpath(){
@@ -377,11 +395,11 @@ const I18N = {
   fr: {
     nav:['Projets','Identité','Paramétrique','Équipe','Contact'],
     eyebrow:"Bureau d'études · Grasshopper / Rhino",
-    h1:"Ingénierie paramétrique pour des projets BTP complexes.",
+    h1:"Ingénierie<br>paramétrique",
     lede:"NEA résout la géométrie, la structure et la fabrication numérique pour les bureaux d'études et entreprises qui ont besoin d'algorithmes, pas seulement de plans.",
     ctaPrimary:'Voir les projets', ctaSecondary:'Parlons de votre projet',
     stats:['Définitions GH','Ans de pratique','Itérations par projet'],
-    featuredLabel:'Projet phare',
+    featuredLabel:'Projet phare', scrollCue:'Scroller pour explorer',
     projTitle:'Travaux sélectionnés', projSub:"Chaque pièce part d'une contrainte réelle — structurelle, de fabrication ou environnementale — et aboutit à un algorithme réutilisable.",
     divTitle:'Trois divisions, un seul cerveau', divSub:"La conception paramétrique irrigue chaque division de NEA, à des étapes de développement différentes.",
     aboutTitle:"Le cerveau de NEA — conception paramétrique",
@@ -405,11 +423,11 @@ const I18N = {
   es: {
     nav:['Proyectos','Identidad','Paramétrico','Equipo','Contacto'],
     eyebrow:"Bureau d'études · Grasshopper / Rhino",
-    h1:'Ingeniería paramétrica para proyectos BTP complejos.',
+    h1:'Ingeniería<br>paramétrica',
     lede:'NEA resuelve geometría, estructura y fabricación digital para estudios y constructoras que necesitan algoritmos, no solo planos.',
     ctaPrimary:'Ver proyectos', ctaSecondary:'Hablemos de tu proyecto',
     stats:['Definiciones GH','Años de práctica','Iteraciones por proyecto'],
-    featuredLabel:'Proyecto destacado',
+    featuredLabel:'Proyecto destacado', scrollCue:'Explorar',
     projTitle:'Trabajo seleccionado', projSub:'Cada pieza parte de una restricción real — estructural, de fabricación o ambiental — y termina en un algoritmo reutilizable.',
     divTitle:'Tres divisiones, un solo cerebro', divSub:'El diseño paramétrico irriga cada división de NEA, en distintas etapas de desarrollo.',
     aboutTitle:'El cerebro de NEA — diseño paramétrico',
@@ -433,11 +451,11 @@ const I18N = {
   en: {
     nav:['Projects','Identity','Parametric','Team','Contact'],
     eyebrow:"Bureau d'études · Grasshopper / Rhino",
-    h1:'Parametric engineering for complex construction projects.',
+    h1:'Parametric<br>engineering',
     lede:'NEA solves geometry, structure and digital fabrication for architecture and construction firms that need algorithms, not just drawings.',
     ctaPrimary:'View projects', ctaSecondary:"Let's talk about your project",
     stats:['GH definitions','Years of practice','Iterations per project'],
-    featuredLabel:'Featured project',
+    featuredLabel:'Featured project', scrollCue:'Scroll to explore',
     projTitle:'Selected work', projSub:'Each piece starts from a real constraint — structural, fabrication-related or environmental — and ends as a reusable algorithm.',
     divTitle:'Three divisions, one brain', divSub:'Parametric design runs through every NEA division, each at its own stage of development.',
     aboutTitle:"NEA's brain — parametric design",
@@ -473,29 +491,36 @@ function renderPublic(){
   const t = I18N[currentLang];
   const page = publicPage();
   renderPublicShell(t, page);
-  gasGet('publicProjects').then(r=>{
-    const items = (r && r.ok) ? r.data : [];
+  Promise.all([gasGet('publicProjects'), gasGet('publicIdentity')]).then(([rp, ri])=>{
+    const items = (rp && rp.ok) ? rp.data : [];
+    const divisiones = (ri && ri.ok) ? (ri.data.divisiones||[]) : [];
+    // Resolver el color/nombre de división de cada proyecto — es clasificación
+    // real, no decoración: cada proyecto lleva el color de SU división.
+    items.forEach(p=>{
+      const div = divisiones.find(d=>d.id==p.divisionId);
+      p.divisionColor = div ? div.color : '';
+      p.divisionNombre = div ? div.nombre : '';
+    });
     const el = document.getElementById('proj-grid-public');
     if(el){ el.outerHTML = buildPublicProjGrid(items, t); initPhotoCyclers(); }
     renderFeaturedProject(items, t);
-  }).catch(()=>{
-    const el = document.getElementById('proj-grid-public');
-    if(el) el.innerHTML = `<div class="empty" style="grid-column:1/-1;">${t.loadError}</div>`;
-  });
-  gasGet('publicIdentity').then(r=>{
-    const el = document.getElementById('identity-map-public');
-    if(el){
-      if(r && r.ok && r.data.core && r.data.core.nombre){
-        el.outerHTML = buildIdentityMap(r.data.core, r.data.divisiones||[], [], false);
+
+    const idEl = document.getElementById('identity-map-public');
+    if(idEl){
+      if(ri && ri.ok && ri.data.core && ri.data.core.nombre){
+        idEl.outerHTML = buildIdentityMap(ri.data.core, divisiones, [], false);
       } else {
-        el.innerHTML = `<div class="empty">Identidad de NEA aún no publicada.</div>`;
+        idEl.innerHTML = `<div class="empty">Identidad de NEA aún no publicada.</div>`;
       }
     }
     const teamEl = document.getElementById('equipo-grid-public');
-    if(teamEl) teamEl.outerHTML = buildEquipoGrid((r && r.ok && r.data.equipo) || []);
+    if(teamEl) teamEl.outerHTML = buildEquipoGrid((ri && ri.ok && ri.data.equipo) || []);
+    initReveal();
   }).catch(()=>{
-    const el = document.getElementById('identity-map-public');
+    const el = document.getElementById('proj-grid-public');
     if(el) el.innerHTML = `<div class="empty">${t.loadError}</div>`;
+    const idEl = document.getElementById('identity-map-public');
+    if(idEl) idEl.innerHTML = `<div class="empty">${t.loadError}</div>`;
   });
 }
 function renderFeaturedProject(items, t){
@@ -511,7 +536,7 @@ function renderFeaturedProject(items, t){
     if(labelEl) labelEl.style.display = 'flex';
     titleEl.textContent = featured.nombre;
     if(descEl) descEl.textContent = loc.desc || '';
-    if(tagEl){ tagEl.textContent = loc.tag || featured.tipo || ''; tagEl.style.display = (loc.tag||featured.tipo) ? 'inline-block' : 'none'; }
+    if(tagEl){ tagEl.textContent = loc.tag || featured.tipo || ''; tagEl.style.display = (loc.tag||featured.tipo) ? 'block' : 'none'; }
     if(photoEl){
       const fotos = getProjectPhotos(featured);
       if(fotos.length){
@@ -525,7 +550,7 @@ function renderFeaturedProject(items, t){
     }
   } else {
     if(labelEl) labelEl.style.display = 'none';
-    titleEl.textContent = t.h1;
+    titleEl.innerHTML = t.h1;
     if(descEl) descEl.textContent = t.lede;
     if(tagEl) tagEl.style.display = 'none';
     if(photoEl){ photoEl.style.display = 'none'; photoEl.removeAttribute('data-fotos'); }
@@ -533,19 +558,28 @@ function renderFeaturedProject(items, t){
   initPhotoCyclers();
 }
 function buildPublicProjGrid(publicables, t){
-  return `<div class="proj-grid" id="proj-grid-public">${publicables.length ? publicables.map(p=>{
+  if(!publicables.length) return `<div class="empty" id="proj-grid-public">${t.emptyProj}</div>`;
+  const patterns = ['a','b','c'];
+  return `<div id="proj-grid-public">${publicables.map((p,i)=>{
     const loc = p[currentLang] || p.fr || {};
-    return `
-        <div class="proj-card">
-          <div class="proj-thumb">${(()=>{const fotos=getProjectPhotos(p); return fotos.length ? `<img src="${fotos[0]}" data-fotos='${JSON.stringify(fotos).replace(/'/g,"&#39;")}' alt="${p.nombre}" style="width:100%; height:100%; object-fit:cover;">` : '[ imagen del proyecto ]';})()}${p.destacado?'<span style="position:absolute; top:10px; right:10px; color:var(--maroon); font-size:14px;">★</span>':''}</div>
-          <div class="proj-body">
-            <div class="proj-tag">${loc.tag||p.tipo}</div>
-            <div class="proj-name">${p.nombre}</div>
-            <div class="proj-desc">${loc.desc||''}</div>
-            <div class="proj-tools">${(loc.tools||'').split(',').filter(x=>x.trim()).map(x=>`<span>${x.trim()}</span>`).join('')}</div>
-          </div>
-        </div>`;
-  }).join('') : `<div class="empty" style="grid-column:1/-1;">${t.emptyProj}</div>`}
+    const fotos = getProjectPhotos(p);
+    const imgHtml = fotos.length
+      ? `<img src="${fotos[0]}" data-fotos='${JSON.stringify(fotos).replace(/'/g,"&#39;")}' alt="${p.nombre}">`
+      : `<div class="proj-thumb-empty">imagen pendiente</div>`;
+    const color = p.divisionColor || 'var(--text-faint)';
+    const pattern = patterns[i % 3];
+    const tagline = `<div class="proj-tagline"><span class="proj-dash" style="background:${color};"></span><span style="color:${color};">${loc.tag||p.tipo||''}</span>${p.divisionNombre?` · ${p.divisionNombre}`:''}</div>`;
+    const star = p.destacado ? `<span class="proj-star">★</span>` : '';
+    return `<div class="proj-row proj-pattern-${pattern} reveal">
+      <div class="proj-media">${star}${imgHtml}</div>
+      <div class="proj-info">
+        ${tagline}
+        <div class="proj-name">${p.nombre}</div>
+        <div class="proj-desc">${loc.desc||''}</div>
+        <div class="proj-tools">${(loc.tools||'').split(',').filter(x=>x.trim()).map(x=>`<span>${x.trim()}</span>`).join('')}</div>
+      </div>
+    </div>`;
+  }).join('')}
     </div>`;
 }
 function buildEquipoGrid(equipo){
@@ -553,7 +587,7 @@ function buildEquipoGrid(equipo){
   return `<div class="team-grid" id="equipo-grid-public">${sorted.length ? sorted.map(m=>{
     const initial = (m.nombre||'?').trim().charAt(0).toUpperCase();
     return `
-    <div class="team-card">
+    <div class="team-card reveal">
       <div class="team-photo-wrap">${(m.foto||'').trim() ? `<img src="${m.foto}" alt="${m.nombre}" onerror="this.parentElement.innerHTML='<span class=&quot;team-initial&quot;>${initial}</span>'">` : `<span class="team-initial">${initial}</span>`}</div>
       <div class="team-info">
         <div class="display" style="font-size:17px; font-weight:600;">${m.nombre}</div>
@@ -564,63 +598,166 @@ function buildEquipoGrid(equipo){
   }).join('') : `<div class="empty">Equipo aún no publicado.</div>`}
   </div>`;
 }
+/* ============================= HERO — malla paramétrica viva (solo página de inicio) =============================
+   Sustituye el mosaico decorativo por un objeto real: una lámina de N×M puntos
+   de control cuya altura sigue una fórmula (cúpula + ondas senoidales), vista
+   en proyección isométrica. El cursor deforma la malla localmente; el scroll
+   la aplana progresivamente de cúpula a plano técnico. Sin librerías 3D — SVG
+   + matemática simple, actualizado por requestAnimationFrame. */
+const HERO_NX = 14, HERO_NY = 10;
+const HERO_HALF_W = 380, HERO_HALF_D = 230, HERO_CX = 500, HERO_CY = 210;
+const HERO_DOME_AMP = 58;
+const HERO_WAVES = [
+  {amp:15, freq:2.6, speed:0.13, phase:0},
+  {amp:10, freq:3.4, speed:0.19, phase:1.7},
+  {amp:7,  freq:4.2, speed:-0.09, phase:3.1}
+];
+const HERO_CURSOR_SIGMA = 0.26, HERO_CURSOR_STRENGTH = 48;
+const ISO_COS = Math.cos(Math.PI/6), ISO_SIN = Math.sin(Math.PI/6);
+
+let heroCursorU = 0, heroCursorV = 0, heroCursorActive = false;
+let heroAnimFrame = null, heroStartTime = null, heroListenersOn = false;
+
 function heroSvgMarkup(){
-  return `<svg class="graph" viewBox="0 0 380 400" preserveAspectRatio="xMidYMid slice">
-    <defs>
-      <radialGradient id="heroWash" cx="50%" cy="42%" r="65%">
-        <stop offset="0%" stop-color="var(--teal)" stop-opacity=".07"></stop>
-        <stop offset="100%" stop-color="var(--teal)" stop-opacity="0"></stop>
-      </radialGradient>
-    </defs>
-    <rect x="0" y="0" width="380" height="400" fill="url(#heroWash)"></rect>
-    <polygon class="vcell vcell-accent vcell-gold" style="animation-delay:3.3s" points="137.4,323.0 125.9,300.5 99.5,285.9 94.8,285.8 80.4,289.9 69.1,296.3 67.2,300.7 52.7,380.0 76.0,380.0 133.1,335.5 136.8,329.8"></polygon>
-    <polygon class="vcell" points="263.0,324.9 352.7,310.6 340.0,260.0 337.9,252.7 288.7,264.9 248.0,305.6 260.5,323.1"></polygon>
-    <polygon class="vcell" points="162.6,286.4 199.8,309.9 220.9,304.5 235.9,299.1 218.9,242.6 184.8,224.3 160.9,251.3"></polygon>
-    <polygon class="vcell vcell-accent vcell-teal" style="animation-delay:2.2s" points="284.0,373.9 363.1,352.5 352.7,310.6 263.0,324.9 282.4,371.6"></polygon>
-    <polygon class="vcell" points="249.6,215.6 218.9,242.6 235.9,299.1 248.0,305.6 288.7,264.9 273.7,213.4"></polygon>
-    <polygon class="vcell" points="67.2,300.7 10.0,299.1 10.0,380.0 52.7,380.0"></polygon>
-    <polygon class="vcell" points="238.8,181.2 199.5,183.1 171.5,197.5 184.8,224.3 218.9,242.6 249.6,215.6 240.6,182.5"></polygon>
-    <polygon class="vcell vcell-accent vcell-maroon" style="animation-delay:1.65s" points="288.7,264.9 337.9,252.7 319.8,189.3 316.0,187.6 273.7,213.4"></polygon>
-    <polygon class="vcell" points="154.3,184.5 117.2,208.0 116.7,208.8 132.4,256.1 160.9,251.3 184.8,224.3 171.5,197.5 158.0,185.7"></polygon>
-    <polygon class="vcell" points="260.5,323.1 248.0,305.6 235.9,299.1 220.9,304.5 196.6,380.0 215.9,380.0"></polygon>
-    <polygon class="vcell" points="67.8,219.7 35.9,230.2 27.1,245.5 36.7,262.1 69.1,296.3 80.4,289.9 73.2,222.8"></polygon>
-    <polygon class="vcell vcell-accent vcell-gold" style="animation-delay:1.1s" points="249.6,215.6 273.7,213.4 316.0,187.6 308.6,174.2 301.6,166.9 276.5,157.6 250.0,200.0 245.3,178.7 240.6,182.5"></polygon>
-    <polygon class="vcell" points="282.4,371.6 263.0,324.9 260.5,323.1 215.9,380.0 264.1,380.0"></polygon>
-    <polygon class="vcell" points="220.9,304.5 199.8,309.9 191.6,317.8 173.1,358.5 172.5,380.0 196.6,380.0"></polygon>
-    <polygon class="vcell" points="132.4,256.1 99.5,285.9 125.9,300.5 162.6,286.4 160.9,251.3"></polygon>
-    <polygon class="vcell vcell-accent vcell-teal" style="animation-delay:2.75s" points="125.9,300.5 137.4,323.0 191.6,317.8 199.8,309.9 162.6,286.4"></polygon>
-    <polygon class="vcell" points="199.5,131.0 225.9,145.3 236.9,140.1 223.8,80.4 206.1,84.3 198.0,125.1"></polygon>
-    <polygon class="vcell" points="133.1,335.5 76.0,380.0 149.9,380.0"></polygon>
-    <polygon class="vcell" points="199.5,131.0 195.8,135.9 185.0,190.0 175.5,162.7 158.0,185.7 171.5,197.5 199.5,183.1 225.8,146.3 225.9,145.3"></polygon>
-    <polygon class="vcell" points="47.5,177.4 32.3,210.9 35.9,230.2 67.8,219.7 65.6,172.8 57.8,158.8 57.4,158.9"></polygon>
-    <polygon class="vcell vcell-accent vcell-maroon" style="animation-delay:3.85s" points="73.2,222.8 80.4,289.9 94.8,285.8 104.9,218.8"></polygon>
-    <polygon class="vcell" points="104.9,218.8 94.8,285.8 99.5,285.9 132.4,256.1 116.7,208.8"></polygon>
-    <polygon class="vcell" points="36.7,262.1 10.0,280.2 10.0,299.1 67.2,300.7 69.1,296.3"></polygon>
-    <polygon class="vcell" points="284.0,373.9 285.5,380.0 370.0,380.0 363.1,352.5"></polygon>
-    <polygon class="vcell vcell-accent vcell-gold" style="animation-delay:0.0s" points="65.6,172.8 67.8,219.7 73.2,222.8 104.9,218.8 116.7,208.8 117.2,208.0 99.3,195.8 95.0,210.0 78.4,181.5"></polygon>
-    <polygon class="vcell" points="173.1,358.5 191.6,317.8 137.4,323.0 136.8,329.8"></polygon>
-    <polygon class="vcell" points="173.1,358.5 136.8,329.8 133.1,335.5 149.9,380.0 172.5,380.0"></polygon>
-    <polygon class="vcell vcell-accent vcell-teal" style="animation-delay:0.55s" points="119.6,129.2 153.3,98.4 140.0,60.0 119.3,129.2"></polygon>
-    <polygon class="vcell" points="199.5,183.1 238.8,181.2 225.8,146.3"></polygon>
-    <polygon class="vcell" points="301.6,166.9 300.0,120.0 276.5,157.6"></polygon>
-    <polygon class="vcell" points="36.7,262.1 27.1,245.5 17.1,244.3 10.0,260.0 10.0,280.2"></polygon>
-    <polygon class="vcell" points="225.9,145.3 225.8,146.3 238.8,181.2 240.6,182.5 245.3,178.7 236.9,140.1"></polygon>
-    <polygon class="vcell" points="223.8,80.4 215.0,40.0 206.1,84.3"></polygon>
-    <polygon class="vcell" points="301.6,166.9 308.6,174.2 313.0,165.5 300.0,120.0 300.0,120.0"></polygon>
-    <polygon class="vcell" points="27.1,245.5 35.9,230.2 32.3,210.9 17.1,244.3"></polygon>
-    <polygon class="vcell" points="308.6,174.2 316.0,187.6 319.8,189.3 313.0,165.5"></polygon>
-    <polygon class="vcell" points="284.0,373.9 282.4,371.6 264.1,380.0 285.5,380.0"></polygon>
-    <polygon class="vcell" points="57.4,158.9 57.8,158.8 62.6,154.4 60.0,150.0 56.1,158.5"></polygon>
-    <polygon class="vcell" points="57.4,158.9 56.1,158.5 47.5,177.4"></polygon>
-    <circle class="vdot" style="animation-delay:0s" cx="84.5" cy="204.2" r="2.8"></circle>
-    <circle class="vdot" style="animation-delay:0.9s" cx="137.5" cy="96.0" r="2.8"></circle>
-    <circle class="vdot" style="animation-delay:1.8s" cx="278.4" cy="188.4" r="2.8"></circle>
-    <circle class="vdot" style="animation-delay:2.7s" cx="305.8" cy="228.8" r="2.8"></circle>
-    <circle class="vdot" style="animation-delay:0.45s" cx="314.1" cy="340.5" r="2.8"></circle>
-    <circle class="vdot" style="animation-delay:1.35s" cx="160.4" cy="306.7" r="2.8"></circle>
+  const cols = Array.from({length:HERO_NX}, ()=>'<polyline class="hero-mesh-line" points=""></polyline>').join('');
+  const rows = Array.from({length:HERO_NY}, ()=>'<polyline class="hero-mesh-line" points=""></polyline>').join('');
+  const dots = Array.from({length:10}, ()=>'<circle class="hero-mesh-dot" r="2.4" cx="-999" cy="-999" style="opacity:0"></circle>').join('');
+  const panels = Array.from({length:(HERO_NX-1)*(HERO_NY-1)}, ()=>'<polygon class="hero-mesh-panel" points="" style="opacity:0"></polygon>').join('');
+  return `<svg viewBox="0 0 1000 560" preserveAspectRatio="xMidYMid slice">
+    <g id="hero-mesh-panels">${panels}</g>
+    <g id="hero-mesh-cols">${cols}</g>
+    <g id="hero-mesh-rows">${rows}</g>
+    <g id="hero-mesh-dots">${dots}</g>
   </svg>`;
 }
+function heroZ(u,v,t,flatten){
+  const r = Math.min(1, Math.sqrt(u*u+v*v));
+  let z = HERO_DOME_AMP * Math.cos(r*Math.PI/2);
+  for(const w of HERO_WAVES) z += w.amp * Math.sin((u+v)*w.freq + t*w.speed + w.phase);
+  return z * (1-flatten);
+}
+function heroCursorBump(u,v){
+  if(!heroCursorActive) return 0;
+  const du=u-heroCursorU, dv=v-heroCursorV;
+  return HERO_CURSOR_STRENGTH * Math.exp(-(du*du+dv*dv)/(2*HERO_CURSOR_SIGMA*HERO_CURSOR_SIGMA));
+}
+function heroProject(x,y,z){
+  return [HERO_CX + (x-y)*ISO_COS, HERO_CY + (x+y)*ISO_SIN*0.9 - z];
+}
+function heroPointerMove(e){
+  const el = document.getElementById('hero-feature');
+  if(!el) return;
+  const rect = el.getBoundingClientRect();
+  heroCursorU = ((e.clientX-rect.left)/rect.width)*2-1;
+  heroCursorV = ((e.clientY-rect.top)/rect.height)*2-1;
+  heroCursorActive = true;
+}
+function heroPointerLeave(){ heroCursorActive = false; }
+function heroTick(ts){
+  const el = document.getElementById('hero-feature');
+  if(!el){ heroAnimFrame = null; return; } // se navegó fuera del inicio — detener el loop
+  if(heroStartTime === null) heroStartTime = ts;
+  const t = (ts - heroStartTime)/1000;
+  const rect = el.getBoundingClientRect();
+  const flatten = Math.max(0, Math.min(1, Math.max(0,-rect.top) / (el.offsetHeight||1)));
+  el.style.setProperty('--flatten', flatten.toFixed(3));
+
+  const colsG = document.getElementById('hero-mesh-cols');
+  const rowsG = document.getElementById('hero-mesh-rows');
+  if(colsG && rowsG){
+    const pts = [];
+    for(let i=0;i<HERO_NX;i++){
+      const u = (i/(HERO_NX-1))*2-1, x = u*HERO_HALF_W;
+      pts[i] = [];
+      for(let j=0;j<HERO_NY;j++){
+        const v = (j/(HERO_NY-1))*2-1, y = v*HERO_HALF_D;
+        const z = heroZ(u,v,t,flatten) + heroCursorBump(u,v);
+        pts[i][j] = heroProject(x,y,z);
+      }
+    }
+    const colEls = colsG.children, rowEls = rowsG.children;
+    for(let i=0;i<HERO_NX;i++){
+      if(colEls[i]) colEls[i].setAttribute('points', pts[i].map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' '));
+    }
+    for(let j=0;j<HERO_NY;j++){
+      const arr = []; for(let i=0;i<HERO_NX;i++) arr.push(pts[i][j]);
+      if(rowEls[j]) rowEls[j].setAttribute('points', arr.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' '));
+    }
+    // Paneles con punto atractor — tamaño y rotación en función de la distancia
+    // al atractor (el cursor si está activo, si no un punto que orbita solo).
+    const attU = heroCursorActive ? heroCursorU : Math.cos(t*0.2)*0.6;
+    const attV = heroCursorActive ? heroCursorV : Math.sin(t*0.17)*0.6;
+    const panelsG = document.getElementById('hero-mesh-panels');
+    if(panelsG){
+      const panelEls = panelsG.children;
+      let pIdx = 0;
+      for(let i=0;i<HERO_NX-1;i++){
+        const u = ((i+0.5)/(HERO_NX-1))*2-1;
+        const x0 = (u)*HERO_HALF_W;
+        for(let j=0;j<HERO_NY-1;j++){
+          const v = ((j+0.5)/(HERO_NY-1))*2-1;
+          const y0 = v*HERO_HALF_D;
+          const dist = Math.hypot(u-attU, v-attV);
+          const s = 9 * Math.max(0.15, 1 - dist/1.5); // tamaño del panel
+          const rot = dist*2.4 + t*0.35; // rotación en radianes
+          const cosr = Math.cos(rot), sinr = Math.sin(rot);
+          const corners = [[-s,-s],[s,-s],[s,s],[-s,s]].map(([dx,dy])=>{
+            const rx = dx*cosr - dy*sinr, ry = dx*sinr + dy*cosr;
+            const zc = heroZ(u,v,t,flatten) + heroCursorBump(u,v);
+            return heroProject(x0+rx, y0+ry, zc);
+          });
+          const el = panelEls[pIdx++];
+          if(el){
+            el.setAttribute('points', corners.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' '));
+            const prox = Math.max(0, 1 - dist/1.3);
+            el.style.opacity = (0.06 + prox*0.4).toFixed(2);
+          }
+        }
+      }
+    }
+    const dotsG = document.getElementById('hero-mesh-dots');
+    if(dotsG){
+      const candidates = [];
+      for(let i=0;i<HERO_NX;i++){
+        const u=(i/(HERO_NX-1))*2-1;
+        for(let j=0;j<HERO_NY;j++){
+          const v=(j/(HERO_NY-1))*2-1;
+          const b = heroCursorBump(u,v);
+          if(b>4) candidates.push({b, p:pts[i][j]});
+        }
+      }
+      candidates.sort((a,b)=>b.b-a.b);
+      const dotEls = dotsG.children;
+      for(let k=0;k<dotEls.length;k++){
+        const c = candidates[k];
+        if(c){ dotEls[k].setAttribute('cx',c.p[0].toFixed(1)); dotEls[k].setAttribute('cy',c.p[1].toFixed(1)); dotEls[k].style.opacity = Math.min(1,c.b/HERO_CURSOR_STRENGTH).toFixed(2); }
+        else dotEls[k].style.opacity = 0;
+      }
+    }
+    const zEl = document.getElementById('hero-hud-z');
+    if(zEl) zEl.textContent = 'Z · ' + ((heroZ(0,0,t,flatten)+heroCursorBump(heroCursorU,heroCursorV))/10).toFixed(2);
+  }
+  heroAnimFrame = requestAnimationFrame(heroTick);
+}
+function initHeroGeometry(){
+  cleanupHeroGeometry();
+  const el = document.getElementById('hero-feature');
+  if(!el) return;
+  el.addEventListener('mousemove', heroPointerMove);
+  el.addEventListener('mouseleave', heroPointerLeave);
+  heroListenersOn = true;
+  heroStartTime = null;
+  heroAnimFrame = requestAnimationFrame(heroTick);
+}
+function cleanupHeroGeometry(){
+  if(heroAnimFrame){ cancelAnimationFrame(heroAnimFrame); heroAnimFrame = null; }
+  const el = document.getElementById('hero-feature');
+  if(el && heroListenersOn){ el.removeEventListener('mousemove', heroPointerMove); el.removeEventListener('mouseleave', heroPointerLeave); }
+  heroListenersOn = false;
+}
+
 function renderPublicShell(t, page){
+  cleanupHeroGeometry(); // detener el loop anterior antes de reconstruir el DOM
   const navItems = [
     {key:'proyectos', idx:'01', label:t.nav[0]},
     {key:'identidad', idx:'02', label:t.nav[1]},
@@ -633,35 +770,34 @@ function renderPublicShell(t, page){
   let main = '';
   if(page==='home'){
     main = `
-    <section class="hero-feature">
+    <section class="hero-feature" id="hero-feature">
       <div class="hero-feature-bg">
         ${heroSvgMarkup()}
         <img id="featured-photo" style="display:none; position:absolute; inset:0; width:100%; height:100%; object-fit:cover;" alt="">
         <div class="hero-feature-fade"></div>
       </div>
+      <div class="hero-hud hero-hud-tr">GRID · 14×10</div>
+      <div class="hero-hud hero-hud-br" id="hero-hud-z">Z · 00.00</div>
+      <div class="hero-scrollcue">${t.scrollCue||'Scroll'} ↓</div>
       <div class="hero-feature-content wrap">
-        <div id="featured-label" class="mono" style="display:none; align-items:center; gap:8px; color:var(--maroon); font-size:12px; text-transform:uppercase; letter-spacing:.1em;">★ ${t.featuredLabel}</div>
+        <div id="featured-label" class="hero-hud" style="position:static; display:none; align-items:center; gap:8px; color:var(--maroon); font-size:12px; margin-bottom:16px;"><span class="hero-attractor-dash"></span>${t.featuredLabel}</div>
         <h1 class="display hero-feature-title" id="featured-title">${t.h1}</h1>
-        <span id="featured-tag" class="pill tag-cyan" style="display:none; margin-top:14px;"></span>
+        <span id="featured-tag" class="hero-hud" style="position:static; display:none; margin-top:14px; color:var(--cyan);"></span>
         <p class="lede hero-feature-desc" id="featured-desc">${t.lede}</p>
-        <div class="hero-actions">
-          <a href="#/proyectos" class="btn btn-primary">${t.ctaPrimary}</a>
-          <a href="#/contacto" class="btn">${t.ctaSecondary}</a>
-        </div>
       </div>
     </section>`;
   } else if(page==='proyectos'){
     main = `<div class="page-content wrap">
       <div class="sec-head">
-        <div><div class="sec-num mono" style="color:var(--gold);">01 / ${t.nav[0]}</div><div class="sec-title">${t.projTitle}</div></div>
+        <div><div class="sec-num mono">01 / ${t.nav[0]}</div><div class="sec-title">${t.projTitle}</div></div>
         <div class="sec-sub">${t.projSub}</div>
       </div>
     </div>
-    <div class="proj-grid" id="proj-grid-public"><div class="empty" style="grid-column:1/-1;">${t.loading}</div></div>`;
+    <div id="proj-grid-public"><div class="empty">${t.loading}</div></div>`;
   } else if(page==='identidad'){
     main = `<div class="page-content wrap">
       <div class="sec-head">
-        <div><div class="sec-num mono" style="color:var(--teal);">02 / ${t.nav[1]}</div><div class="sec-title">${t.divTitle||t.nav[1]}</div></div>
+        <div><div class="sec-num mono">02 / ${t.nav[1]}</div><div class="sec-title">${t.divTitle||t.nav[1]}</div></div>
         <div class="sec-sub">${t.divSub||''}</div>
       </div>
       <div id="identity-map-public"><div class="empty">${t.loading}</div></div>
@@ -670,7 +806,7 @@ function renderPublicShell(t, page){
     main = `<div class="page-content wrap">
       <div class="about-grid">
         <div>
-          <div class="sec-num mono" style="color:var(--maroon);">03 / ${t.nav[2]}</div>
+          <div class="sec-num mono">03 / ${t.nav[2]}</div>
           <div class="sec-title" style="margin-top:8px;">${t.aboutTitle}</div>
           <div class="stats-row" style="margin-top:30px;">
             <div class="stat"><div class="num">30+</div><div class="lbl">${t.stats[0]}</div></div>
@@ -705,13 +841,13 @@ function renderPublicShell(t, page){
       </div>
       <div class="field-note" style="margin-top:50px; margin-bottom:18px; text-transform:uppercase; letter-spacing:.06em;">${t.servTitle} — ${t.servSub}</div>
       <div class="serv-grid">
-        ${t.services.map((s,i)=>`<div class="serv-card"><div class="serv-num">0${i+1}</div><div><div class="serv-title">${s[0]}</div><div class="serv-desc">${s[1]}</div></div></div>`).join('')}
+        ${t.services.map((s,i)=>`<div class="serv-card reveal"><div class="serv-num">0${i+1}</div><div><div class="serv-title">${s[0]}</div><div class="serv-desc">${s[1]}</div></div></div>`).join('')}
       </div>
     </div>`;
   } else if(page==='equipo'){
     main = `<div class="page-content wrap">
       <div class="sec-head">
-        <div><div class="sec-num mono" style="color:var(--gold);">04 / ${t.nav[3]}</div><div class="sec-title">${t.equipoTitle}</div></div>
+        <div><div class="sec-num mono">04 / ${t.nav[3]}</div><div class="sec-title">${t.equipoTitle}</div></div>
         ${t.equipoSub ? `<div class="sec-sub">${t.equipoSub}</div>` : ''}
       </div>
       <div class="team-grid" id="equipo-grid-public"><div class="empty">${t.loading}</div></div>
@@ -720,7 +856,7 @@ function renderPublicShell(t, page){
     main = `<div class="page-content wrap">
       <div class="contact-grid">
         <div>
-          <div class="sec-num mono" style="color:var(--teal);">05 / ${t.nav[4]}</div>
+          <div class="sec-num mono">05 / ${t.nav[4]}</div>
           <div class="contact-title" style="margin-top:12px;">${t.contactTitle}</div>
           <a href="mailto:contact@nea-etudes.fr" class="contact-email">contact@nea-etudes.fr</a>
         </div>
@@ -753,6 +889,8 @@ function renderPublicShell(t, page){
       <div><a href="#" onclick="return false;">LinkedIn</a><a href="#" onclick="return false;">Food4Rhino</a></div>
     </footer>
   </div>`;
+  initReveal();
+  if(page==='home') initHeroGeometry();
 }
 
 
@@ -929,6 +1067,10 @@ function renderEditProyectoForm(p){
         <div><label>Nombre</label><input id="e-nombre-${p.id}" value="${p.nombre}"></div>
         <div><label>Cliente</label><input id="e-cliente-${p.id}" value="${p.cliente}"></div>
         <div><label>Tipo</label><input id="e-tipo-${p.id}" value="${p.tipo}"></div>
+        <div><label>División (define su color en todo el sitio)</label><select id="e-divisionId-${p.id}">
+          <option value="">— sin asignar —</option>
+          ${DB.divisiones.map(d=>`<option value="${d.id}" ${p.divisionId==d.id?'selected':''}>${d.nombre}</option>`).join('')}
+        </select></div>
         <div><label>Honorarios (€)</label><input type="number" id="e-honorarios-${p.id}" value="${p.honorarios}"></div>
         <div><label>Horas estimadas</label><input type="number" id="e-horasEst-${p.id}" value="${p.horasEst||0}"></div>
         <div><label>Horas reales</label><input type="number" id="e-horasReal-${p.id}" value="${p.horasReal||0}"></div>
@@ -950,6 +1092,7 @@ function saveEditProyecto(id){
   p.nombre = g('e-nombre').trim() || p.nombre;
   p.cliente = g('e-cliente');
   p.tipo = g('e-tipo');
+  p.divisionId = g('e-divisionId') ? parseInt(g('e-divisionId')) : '';
   p.honorarios = parseFloat(g('e-honorarios'))||0;
   p.horasEst = parseFloat(g('e-horasEst'))||0;
   p.horasReal = parseFloat(g('e-horasReal'))||0;
@@ -1441,7 +1584,7 @@ function buildIdentityMap(core, divisiones, fases, showPhases){
     <div class="identity-branches-wrap"><div class="identity-branches">
       ${sorted.map((d,idx)=>{
         const fasesDiv = showPhases ? fases.filter(f=>f.divisionId===d.id).sort((a,b)=>(a.orden||0)-(b.orden||0)) : [];
-        return `<div class="identity-branch">
+        return `<div class="identity-branch${showPhases?'':' reveal'}">
           <div class="division-card" style="--dv-color:${d.color||'var(--cyan)'};">
             <div class="idx">0${idx+1}</div>
             <div class="name">${d.nombre}</div>
@@ -1784,8 +1927,10 @@ function renderPortafolio(){
   initPhotoCyclers();
 }
 function proyectoToPublicShape(p){
+  const div = DB.divisiones.find(d=>d.id==p.divisionId);
   return {
     nombre: p.nombre, tipo: p.tipo, destacado: p.destacado, fotoUrl: p.fotoUrl||'', fotos: p.fotos||'',
+    divisionColor: div ? div.color : '', divisionNombre: div ? div.nombre : '',
     fr: {tag:p.publicTag, desc:p.publicDesc, tools:p.publicTools},
     es: {tag:p.publicTag_es, desc:p.publicDesc_es, tools:p.publicTools_es},
     en: {tag:p.publicTag_en, desc:p.publicDesc_en, tools:p.publicTools_en}
@@ -2227,6 +2372,25 @@ function initPhotoCyclers(){
     photoCyclerIntervals.push(id);
   });
 }
+// Revela bloques al entrar en el viewport — solo función (mostrar contenido a
+// medida que se explora la página), no es un efecto decorativo suelto.
+let revealObserver = null;
+function initReveal(){
+  if(revealObserver) revealObserver.disconnect();
+  if(!('IntersectionObserver' in window)){
+    document.querySelectorAll('.reveal').forEach(el=>el.classList.add('is-visible'));
+    return;
+  }
+  revealObserver = new IntersectionObserver((entries)=>{
+    entries.forEach(entry=>{
+      if(entry.isIntersecting){
+        entry.target.classList.add('is-visible');
+        revealObserver.unobserve(entry.target);
+      }
+    });
+  }, {threshold:0.12});
+  document.querySelectorAll('.reveal:not(.is-visible)').forEach(el=>revealObserver.observe(el));
+}
 
 function renderDocumentos(){
   root().innerHTML = `
@@ -2524,7 +2688,7 @@ function renderSimQuarterly(){
 }
 
 /* expose functions used by inline handlers */
-window.setLang=setLang; window.tryLogin=tryLogin; window.logout=logout; window.addProyecto=addProyecto; window.setProyectoEtapa=setProyectoEtapa; window.toggleEditProyecto=toggleEditProyecto; window.saveEditProyecto=saveEditProyecto; window.setEditProyectoLang=setEditProyectoLang;
+window.setLang=setLang; window.tryLogin=tryLogin; window.logout=logout; window.addProyecto=addProyecto; window.setProyectoEtapa=setProyectoEtapa; window.toggleEditProyecto=toggleEditProyecto; window.saveEditProyecto=saveEditProyecto;
 window.deleteItem=deleteItem; window.toggleEdit=toggleEdit; window.saveEditCliente=saveEditCliente; window.saveEditBiblioteca=saveEditBiblioteca;
 window.saveEditTiempo=saveEditTiempo; window.saveEditGasto=saveEditGasto; window.saveEditDocumento=saveEditDocumento;
 window.addCliente=addCliente;
